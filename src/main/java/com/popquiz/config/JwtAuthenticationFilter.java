@@ -14,10 +14,13 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
     private final JwtService jwtService;
     private final UserDetailsServiceImpl userDetailsService;
 
@@ -37,16 +40,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String username;
         
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            logger.debug("未携带 Authorization Bearer token，直接放行: {}", request.getRequestURI());
             filterChain.doFilter(request, response);
             return;
         }
         
         jwt = authHeader.substring(7);
+        logger.debug("收到 JWT token: {}", jwt);
         username = jwtService.extractUsername(jwt);
+        logger.debug("解析出 username: {}", username);
         
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
-            if (jwtService.isTokenValid(jwt, userDetails)) {
+            boolean valid = jwtService.isTokenValid(jwt, userDetails);
+            logger.debug("token 校验结果: {}", valid);
+            if (valid) {
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails,
                         null,
@@ -56,7 +64,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         new WebAuthenticationDetailsSource().buildDetails(request)
                 );
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+            } else {
+                logger.warn("token 校验失败，返回 401: {}", request.getRequestURI());
             }
+        } else {
+            logger.warn("username 为空或已认证，跳过 token 校验: {}", request.getRequestURI());
         }
         filterChain.doFilter(request, response);
     }

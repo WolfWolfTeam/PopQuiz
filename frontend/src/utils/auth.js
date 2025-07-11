@@ -4,8 +4,8 @@
  */
 
 // 本地存储的键名
-const TOKEN_KEY = 'popquiz_auth_token';
-const USER_KEY = 'popquiz_user_data';
+export const TOKEN_KEY = 'popquiz_auth_token';
+export const USER_KEY = 'popquiz_user_data';
 
 /**
  * 设置认证令牌和用户信息
@@ -13,8 +13,12 @@ const USER_KEY = 'popquiz_user_data';
  * @param {Object} userData 用户数据
  */
 export const setAuth = (token, userData) => {
+  console.log('setAuth 被调用，token:', token);
+  console.log('setAuth 被调用，userData:', userData);
+  console.log('写入 localStorage，TOKEN_KEY:', TOKEN_KEY, 'USER_KEY:', USER_KEY);
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(USER_KEY, JSON.stringify(userData));
+  console.log('localStorage 已写入');
 };
 
 /**

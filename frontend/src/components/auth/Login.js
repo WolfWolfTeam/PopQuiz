@@ -99,7 +99,10 @@ const Login = () => {
       
       // 登录成功
       const { token, user } = response.data;
+      console.log('登录成功，token:', token);
+      console.log('登录成功，user:', user);
       login(token, user);
+      console.log('login(token, user) 已调用');
       navigate('/dashboard');
       
     } catch (error) {

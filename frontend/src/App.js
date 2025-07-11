@@ -50,6 +50,7 @@ axios.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    console.log('axios 请求:', config.url, 'Authorization:', config.headers.Authorization);
     return config;
   },
   (error) => {

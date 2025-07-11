@@ -32,7 +32,7 @@ import AuthContext from '../../contexts/AuthContext';
 import StatCard from './StatCard';
 
 const Dashboard = () => {
-  const { user } = useContext(AuthContext);
+  const { user, isAuthenticated } = useContext(AuthContext);
   
   // 状态
   const [loading, setLoading] = useState(true);
@@ -48,6 +48,7 @@ const Dashboard = () => {
   
   // 获取仪表盘数据
   useEffect(() => {
+    if (!isAuthenticated) return; // 只有认证后才请求数据
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
@@ -69,7 +70,7 @@ const Dashboard = () => {
     };
     
     fetchDashboardData();
-  }, []);
+  }, [isAuthenticated]);
   
   // 根据用户角色获取仪表盘标题
   const getDashboardTitle = () => {

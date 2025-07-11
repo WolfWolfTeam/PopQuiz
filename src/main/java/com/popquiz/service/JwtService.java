@@ -15,9 +15,13 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class JwtService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(JwtService.class);
     
     @Value("${jwt.secret}")
     private String secretKey;
@@ -29,7 +33,12 @@ public class JwtService {
     private long refreshExpiration;
     
     public String extractUsername(String token) {
-        return extractClaim(token, Claims::getSubject);
+        try {
+            return extractClaim(token, Claims::getSubject);
+        } catch (Exception e) {
+            logger.error("extractUsername 解析 token 异常", e);
+            return null;
+        }
     }
     
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
@@ -54,6 +63,7 @@ public class JwtService {
             UserDetails userDetails,
             long expiration
     ) {
+        // 生成带有 exp 字段的 JWT
         return Jwts
                 .builder()
                 .setClaims(extraClaims)
@@ -65,8 +75,15 @@ public class JwtService {
     }
     
     public boolean isTokenValid(String token, UserDetails userDetails) {
-        final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+        try {
+            final String username = extractUsername(token);
+            boolean valid = (username != null && username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+            logger.debug("isTokenValid: username={}, valid={}", username, valid);
+            return valid;
+        } catch (Exception e) {
+            logger.error("isTokenValid 校验 token 异常", e);
+            return false;
+        }
     }
     
     private boolean isTokenExpired(String token) {
@@ -78,12 +95,17 @@ public class JwtService {
     }
     
     private Claims extractAllClaims(String token) {
-        return Jwts
-                .parserBuilder()
-                .setSigningKey(getSignInKey(secretKey))
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+        try {
+            return Jwts
+                    .parserBuilder()
+                    .setSigningKey(getSignInKey(secretKey))
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (Exception e) {
+            logger.error("extractAllClaims 解析 token 异常", e);
+            throw e;
+        }
     }
     
     private Key getSignInKey(String secret) {
