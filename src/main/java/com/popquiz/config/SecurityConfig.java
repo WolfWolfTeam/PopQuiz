@@ -47,6 +47,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // 公开路径
                 .requestMatchers("/",
+                             "/api/auth/**",
                              "/auth/**",
                              "/swagger-ui/**",
                              "/v3/api-docs/**").permitAll()

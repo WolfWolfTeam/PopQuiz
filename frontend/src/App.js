@@ -142,8 +142,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router>
-        <Routes>
+      <Routes>
           {/* 公共路由 - 未登录用户可访问 */}
           <Route 
             path="/login" 
@@ -189,8 +188,7 @@ function App() {
             {/* 找不到页面 */}
             <Route path="*" element={<NotFound />} />
           </Route>
-        </Routes>
-      </Router>
+      </Routes>
       
       {/* 通知提示 */}
       <Snackbar
