@@ -36,7 +36,7 @@ const Register = () => {
     confirmPassword: '',
     email: '',
     fullName: '',
-    role: 'AUDIENCE', // 默认角色为听众
+    role: 'ROLE_USER', // 默认角色为听众
     agreeTerms: false
   });
   
@@ -346,19 +346,19 @@ const Register = () => {
                     onChange={handleChange}
                   >
                     <FormControlLabel 
-                      value="ORGANIZER" 
+                      value="ROLE_ORGANIZER" 
                       control={<Radio />} 
                       label="组织者" 
                       disabled={loading}
                     />
                     <FormControlLabel 
-                      value="SPEAKER" 
+                      value="ROLE_SPEAKER" 
                       control={<Radio />} 
                       label="演讲者" 
                       disabled={loading}
                     />
                     <FormControlLabel 
-                      value="AUDIENCE" 
+                      value="ROLE_USER" 
                       control={<Radio />} 
                       label="听众" 
                       disabled={loading}

@@ -8,8 +8,8 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -45,12 +45,11 @@ public class SecurityConfig {
             .exceptionHandling(exception -> exception.authenticationEntryPoint(authenticationEntryPoint))
             // 请求认证配置
             .authorizeHttpRequests(auth -> auth
+                // 明确允许登录和注册接口匿名访问
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/auth/login").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/auth/register").permitAll()
                 // 公开路径
-                .requestMatchers("/",
-                             "/api/auth/**",
-                             "/auth/**",
-                             "/swagger-ui/**",
-                             "/v3/api-docs/**").permitAll()
+                .requestMatchers("/", "/api/auth/**", "/auth/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 // 其他所有请求需要身份验证
                 .anyRequest().authenticated()
             );
@@ -76,7 +75,7 @@ public class SecurityConfig {
     
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return NoOpPasswordEncoder.getInstance();
     }
     
     @Bean

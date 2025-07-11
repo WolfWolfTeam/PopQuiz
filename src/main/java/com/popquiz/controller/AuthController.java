@@ -61,7 +61,7 @@ public class AuthController {
         // 创建新用户
         User user = new User();
         user.setUsername(request.getUsername());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setPassword(request.getPassword());
         user.setEmail(request.getEmail());
         user.setFullName(request.getFullName());
         user.setRoles(Collections.singleton(role));
@@ -78,26 +78,30 @@ public class AuthController {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
         );
-        
+
         // 生成JWT
         org.springframework.security.core.userdetails.User userDetails = 
                 (org.springframework.security.core.userdetails.User) authentication.getPrincipal();
-        
+
         User user = userRepository.findByUsername(userDetails.getUsername())
                 .orElseThrow(() -> new UsernameNotFoundException("用户不存在"));
-        
+
         String jwt = jwtService.generateToken(userDetails);
-        
+
+        // 构建 user 对象
+        Map<String, Object> userMap = new HashMap<>();
+        userMap.put("userId", user.getId());
+        userMap.put("username", user.getUsername());
+        userMap.put("role", user.getRoles().stream().findFirst().map(Role::getName).orElse("UNKNOWN"));
+        userMap.put("fullName", user.getFullName());
+        userMap.put("nickname", user.getNickname());
+        userMap.put("email", user.getEmail());
+
         // 构建响应
         Map<String, Object> response = new HashMap<>();
         response.put("token", jwt);
-        response.put("userId", user.getId());
-        response.put("username", user.getUsername());
-        response.put("email", user.getEmail());
-        response.put("role", user.getRoles().stream().findFirst().map(Role::getName).orElse("UNKNOWN"));
-        response.put("fullName", user.getFullName());
-        response.put("nickname", user.getNickname());
-        
+        response.put("user", userMap);
+
         return ResponseEntity.ok(response);
     }
     

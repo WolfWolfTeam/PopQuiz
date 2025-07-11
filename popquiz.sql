@@ -213,12 +213,12 @@ CREATE TABLE `discussion_comments` (
 -- 插入初始角色
 INSERT INTO `role` (`name`) VALUES ('ROLE_ADMIN'),('ROLE_ORGANIZER'),('ROLE_SPEAKER'),('ROLE_USER');
 
--- 插入初始用户（密码均为123456，BCrypt加密：$2a$10$Dow1QwQwQwQwQwQwQwQwQeQwQwQwQwQwQwQwQwQwQwQwQwQwQwQ）
+-- 插入初始用户（密码均为123456）
 INSERT INTO `user` (`username`, `email`, `password`, `full_name`, `enabled`) VALUES
-('admin', 'admin@popquiz.com', '$2a$10$Dow1QwQwQwQwQwQwQwQwQeQwQwQwQwQwQwQwQwQwQwQwQwQwQwQ', '管理员', TRUE),
-('organizer', 'organizer@popquiz.com', '$2a$10$Dow1QwQwQwQwQwQwQwQwQeQwQwQwQwQwQwQwQwQwQwQwQwQwQwQ', '组织者', TRUE),
-('speaker', 'speaker@popquiz.com', '$2a$10$Dow1QwQwQwQwQwQwQwQwQeQwQwQwQwQwQwQwQwQwQwQwQwQwQwQ', '演讲者', TRUE),
-('user', 'user@popquiz.com', '$2a$10$Dow1QwQwQwQwQwQwQwQwQeQwQwQwQwQwQwQwQwQwQwQwQwQwQwQ', '普通用户', TRUE);
+('admin', 'admin@popquiz.com', '123456', '管理员', TRUE),
+('organizer', 'organizer@popquiz.com', '123456', '组织者', TRUE),
+('speaker', 'speaker@popquiz.com', '123456', '演讲者', TRUE),
+('user', 'user@popquiz.com', '123456', '普通用户', TRUE);
 
 -- 分配角色
 INSERT INTO `user_role` (`user_id`, `role_id`) SELECT u.id, r.id FROM `user` u, `role` r WHERE u.username = 'admin' AND r.name = 'ROLE_ADMIN';

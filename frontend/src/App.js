@@ -40,7 +40,7 @@ const theme = createTheme({
 });
 
 // 设置全局axios默认值
-axios.defaults.baseURL = process.env.REACT_APP_API_URL || '';
+axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 
 // 添加请求拦截器
