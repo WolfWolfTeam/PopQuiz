@@ -61,11 +61,12 @@ public class AuthController {
         // 创建新用户
         User user = new User();
         user.setUsername(request.getUsername());
-        user.setPassword(request.getPassword());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setEmail(request.getEmail());
         user.setFullName(request.getFullName());
         user.setRoles(Collections.singleton(role));
         user.setNickname(request.getNickname());
+        user.setEnabled(true);
         
         userRepository.save(user);
         

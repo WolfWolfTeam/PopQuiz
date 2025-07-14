@@ -28,7 +28,7 @@ import AccountCircle from '@mui/icons-material/AccountCircle';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import LogoutIcon from '@mui/icons-material/Logout';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import { clearAuth, getCurrentUser } from '../../utils/auth';
+import { useAuth } from '../../contexts/AuthContext';
 
 // 侧边栏宽度
 const drawerWidth = 240;
@@ -42,19 +42,13 @@ const Layout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { user, logout } = useAuth();
   
   // 状态
   const [drawerOpen, setDrawerOpen] = useState(!isMobile);
-  const [user, setUser] = useState(null);
   const [userMenuAnchor, setUserMenuAnchor] = useState(null);
   const [notificationMenuAnchor, setNotificationMenuAnchor] = useState(null);
   const [notifications, setNotifications] = useState([]);
-  
-  // 获取当前用户信息
-  useEffect(() => {
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
-  }, []);
   
   // 监听通知事件
   useEffect(() => {
@@ -97,7 +91,7 @@ const Layout = () => {
   
   // 处理登出
   const handleLogout = () => {
-    clearAuth();
+    logout();
     navigate('/login');
   };
   
@@ -253,12 +247,21 @@ const Layout = () => {
           {/* 用户下拉菜单 */}
           <Menu
             anchorEl={userMenuAnchor}
-            keepMounted
             open={Boolean(userMenuAnchor)}
             onClose={handleUserMenuClose}
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
           >
-            <MenuItem disabled>
-              {user ? user.username : '用户'}
+            <MenuItem onClick={handleUserMenuClose}>
+              <Typography variant="body2" color="text.secondary">
+                {user ? `${user.fullName || user.username} (${user.role})` : '用户'}
+              </Typography>
             </MenuItem>
             <Divider />
             <MenuItem onClick={handleLogout}>
@@ -272,52 +275,41 @@ const Layout = () => {
           {/* 通知下拉菜单 */}
           <Menu
             anchorEl={notificationMenuAnchor}
-            keepMounted
             open={Boolean(notificationMenuAnchor)}
             onClose={handleNotificationMenuClose}
-            PaperProps={{
-              style: {
-                maxHeight: 300,
-                width: 320,
-              },
+            anchorOrigin={{
+              vertical: 'bottom',
+              horizontal: 'right',
+            }}
+            transformOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
             }}
           >
             {notifications.length === 0 ? (
               <MenuItem disabled>
-                暂无通知
+                <Typography variant="body2" color="text.secondary">
+                  暂无通知
+                </Typography>
               </MenuItem>
             ) : (
               <>
-                <MenuItem 
-                  onClick={clearAllNotifications}
-                  sx={{ color: 'text.secondary', justifyContent: 'center' }}
-                >
-                  清除所有通知
-                </MenuItem>
-                <Divider />
                 {notifications.map((notification, index) => (
-                  <MenuItem
-                    key={index}
+                  <MenuItem 
+                    key={index} 
                     onClick={() => handleNotificationClick(notification)}
-                    sx={{ 
-                      whiteSpace: 'normal',
-                      display: 'block', 
-                      py: 1 
-                    }}
                   >
-                    <Typography variant="subtitle2">
-                      {notification.title}
+                    <Typography variant="body2">
+                      {notification.title || notification.message}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {notification.body}
-                    </Typography>
-                    {notification.createdAt && (
-                      <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.5 }}>
-                        {new Date(notification.createdAt).toLocaleString()}
-                      </Typography>
-                    )}
                   </MenuItem>
                 ))}
+                <Divider />
+                <MenuItem onClick={clearAllNotifications}>
+                  <Typography variant="body2" color="text.secondary">
+                    清除所有通知
+                  </Typography>
+                </MenuItem>
               </>
             )}
           </Menu>
@@ -326,7 +318,7 @@ const Layout = () => {
       
       {/* 侧边栏 */}
       <Drawer
-        variant={isMobile ? "temporary" : "persistent"}
+        variant={isMobile ? 'temporary' : 'persistent'}
         open={drawerOpen}
         onClose={toggleDrawer}
         sx={{
@@ -347,14 +339,10 @@ const Layout = () => {
         sx={{
           flexGrow: 1,
           p: 3,
-          pt: 8,
-          ...(drawerOpen && !isMobile && { marginLeft: `${drawerWidth}px` }),
-          ...(isMobile && { width: '100%' }),
-          bgcolor: (theme) => theme.palette.grey[50],
-          minHeight: '100vh'
+          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          mt: 8
         }}
       >
-        <Toolbar />
         <Outlet />
       </Box>
     </Box>
