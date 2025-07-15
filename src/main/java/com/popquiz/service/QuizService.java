@@ -28,6 +28,7 @@ public class QuizService {
     private final ContentRepository contentRepository;
     private final LectureRepository lectureRepository;
     private final UserResponseRepository userResponseRepository;
+    private final UserRepository userRepository;
     private final NotificationService notificationService;
     
     public QuizService(
@@ -37,6 +38,7 @@ public class QuizService {
             ContentRepository contentRepository,
             LectureRepository lectureRepository,
             UserResponseRepository userResponseRepository,
+            UserRepository userRepository,
             NotificationService notificationService) {
         this.huggingFaceService = huggingFaceService;
         this.quizRepository = quizRepository;
@@ -44,6 +46,7 @@ public class QuizService {
         this.contentRepository = contentRepository;
         this.lectureRepository = lectureRepository;
         this.userResponseRepository = userResponseRepository;
+        this.userRepository = userRepository;
         this.notificationService = notificationService;
     }
     
@@ -166,8 +169,8 @@ public class QuizService {
      */
     @Transactional
     public UserResponse submitAnswer(Long userId, Long questionId, List<Long> optionIds, String textResponse, Long responseTimeMs) {
-        User user = new User(); // 这里应该从UserRepository中获取，简化实现
-        user.setId(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
         
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new RuntimeException("问题不存在"));
@@ -196,8 +199,10 @@ public class QuizService {
             question.getType() == Question.QuestionType.MULTIPLE_ANSWER) {
             // 处理选择题
             for (Long optionId : optionIds) {
-                Option option = new Option(); // 这里应该从数据库获取，简化实现
-                option.setId(optionId);
+                Option option = question.getOptions().stream()
+                        .filter(o -> o.getId().equals(optionId))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException("选项不存在"));
                 response.getSelectedOptions().add(option);
                 
                 // 更新选择次数
@@ -208,18 +213,28 @@ public class QuizService {
             if (question.getType() == Question.QuestionType.MULTIPLE_CHOICE) {
                 // 单选题：选择一个且正确
                 if (optionIds.size() == 1) {
-                    Option selectedOption = new Option();
-                    selectedOption.setId(optionIds.get(0));
-                    response.setCorrect(selectedOption.getCorrect());
+                    Option selectedOption = question.getOptions().stream()
+                            .filter(o -> o.getId().equals(optionIds.get(0)))
+                            .findFirst()
+                            .orElse(null);
+                    response.setCorrect(selectedOption != null && selectedOption.getCorrect());
                 } else {
                     response.setCorrect(false);
                 }
             } else {
                 // 多选题：所有正确的选项都被选中，且没有选错误的选项
-                boolean allCorrectOptionsSelected = true;
-                boolean noIncorrectOptionsSelected = true;
+                List<Option> correctOptions = question.getOptions().stream()
+                        .filter(Option::getCorrect)
+                        .collect(Collectors.toList());
+                List<Option> incorrectOptions = question.getOptions().stream()
+                        .filter(o -> !o.getCorrect())
+                        .collect(Collectors.toList());
                 
-                // 这里需要更复杂的逻辑，简化实现
+                boolean allCorrectOptionsSelected = correctOptions.stream()
+                        .allMatch(o -> optionIds.contains(o.getId()));
+                boolean noIncorrectOptionsSelected = incorrectOptions.stream()
+                        .noneMatch(o -> optionIds.contains(o.getId()));
+                
                 response.setCorrect(allCorrectOptionsSelected && noIncorrectOptionsSelected);
             }
         } else if (question.getType() == Question.QuestionType.SHORT_ANSWER) {
@@ -264,8 +279,8 @@ public class QuizService {
      * 获取用户在测验中的统计信息
      */
     public UserQuizStatistics getUserQuizStatistics(Long userId, Long quizId) {
-        User user = new User(); // 这里应该从UserRepository中获取，简化实现
-        user.setId(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
         
         Quiz quiz = quizRepository.findById(quizId)
                 .orElseThrow(() -> new RuntimeException("测验不存在"));

@@ -49,7 +49,12 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/auth/login").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/auth/register").permitAll()
                 // 公开路径
-                .requestMatchers("/", "/api/auth/**", "/auth/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .requestMatchers("/", "/api/auth/**", "/auth/**").permitAll()
+                // Swagger UI 相关路径放行
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/api/swagger-ui/**", "/api/v3/api-docs/**").permitAll()
+                .requestMatchers("/swagger-ui.html", "/api/swagger-ui.html").permitAll()
+                .requestMatchers("/webjars/**", "/api/webjars/**").permitAll()
+                .requestMatchers("/swagger-resources/**", "/api/swagger-resources/**").permitAll()
                 // 其他所有请求需要身份验证
                 .anyRequest().authenticated()
             );
