@@ -6,6 +6,7 @@ import com.popquiz.model.User;
 import com.popquiz.repository.LectureRepository;
 import com.popquiz.repository.UserRepository;
 import com.popquiz.service.ContentProcessingService;
+import com.popquiz.service.LectureService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -21,16 +22,13 @@ import java.util.stream.Collectors;
 @RequestMapping("/api")
 public class LectureController {
 
-    private final LectureRepository lectureRepository;
-    private final UserRepository userRepository;
+    private final LectureService lectureService;
     private final ContentProcessingService contentProcessingService;
 
     public LectureController(
-            LectureRepository lectureRepository,
-            UserRepository userRepository,
+            LectureService lectureService,
             ContentProcessingService contentProcessingService) {
-        this.lectureRepository = lectureRepository;
-        this.userRepository = userRepository;
+        this.lectureService = lectureService;
         this.contentProcessingService = contentProcessingService;
     }
 
@@ -38,33 +36,13 @@ public class LectureController {
     
     @GetMapping("/organizer/lectures")
     public ResponseEntity<List<Lecture>> getOrganizerLectures(Principal principal) {
-        User organizer = userRepository.findByUsername(principal.getName())
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
-        
-        List<Lecture> lectures = lectureRepository.findByOrganizer(organizer);
+        List<Lecture> lectures = lectureService.getLecturesByOrganizer(principal.getName());
         return ResponseEntity.ok(lectures);
     }
     
     @PostMapping("/organizer/lectures")
     public ResponseEntity<?> createLecture(@RequestBody CreateLectureRequest request, Principal principal) {
-        User organizer = userRepository.findByUsername(principal.getName())
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
-        
-        User presenter = userRepository.findById(request.getPresenterId())
-                .orElseThrow(() -> new RuntimeException("演讲者不存在"));
-        
-        // 创建讲座
-        Lecture lecture = new Lecture();
-        lecture.setTitle(request.getTitle());
-        lecture.setDescription(request.getDescription());
-        lecture.setOrganizer(organizer);
-        lecture.setPresenter(presenter);
-        lecture.setScheduledTime(request.getScheduledTime());
-        lecture.setStatus(Lecture.LectureStatus.SCHEDULED);
-        lecture.setAccessCode(generateAccessCode());
-        lecture.setQuizInterval(request.getQuizInterval() != null ? request.getQuizInterval() : 10);
-        
-        Lecture savedLecture = lectureRepository.save(lecture);
+        Lecture savedLecture = lectureService.createLecture(request, principal.getName());
         return ResponseEntity.ok(savedLecture);
     }
     
@@ -195,21 +173,12 @@ public class LectureController {
     
     @PostMapping("/audience/lectures/join")
     public ResponseEntity<?> joinLecture(@RequestBody JoinLectureRequest request, Principal principal) {
-        User audience = userRepository.findByUsername(principal.getName())
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
-        
-        List<Lecture> lectures = lectureRepository.findByAccessCode(request.getAccessCode());
-        if (lectures.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "无效的访问代码"));
+        try {
+            Lecture updatedLecture = lectureService.joinLecture(principal.getName(), request.getAccessCode());
+            return ResponseEntity.ok(updatedLecture);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
-        
-        Lecture lecture = lectures.get(0);
-        Set<User> audienceSet = lecture.getAudience();
-        audienceSet.add(audience);
-        lecture.setAudience(audienceSet);
-        
-        Lecture updatedLecture = lectureRepository.save(lecture);
-        return ResponseEntity.ok(updatedLecture);
     }
     
     @GetMapping("/audience/lectures")
