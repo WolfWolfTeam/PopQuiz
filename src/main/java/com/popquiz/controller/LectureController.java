@@ -3,6 +3,7 @@ package com.popquiz.controller;
 import com.popquiz.model.Content;
 import com.popquiz.model.Lecture;
 import com.popquiz.model.User;
+import com.popquiz.model.CreateLectureRequest;
 import com.popquiz.repository.LectureRepository;
 import com.popquiz.repository.UserRepository;
 import com.popquiz.service.ContentProcessingService;
@@ -24,12 +25,18 @@ public class LectureController {
 
     private final LectureService lectureService;
     private final ContentProcessingService contentProcessingService;
+    private final UserRepository userRepository;
+    private final LectureRepository lectureRepository;
 
     public LectureController(
             LectureService lectureService,
-            ContentProcessingService contentProcessingService) {
+            ContentProcessingService contentProcessingService,
+            UserRepository userRepository,
+            LectureRepository lectureRepository) {
         this.lectureService = lectureService;
         this.contentProcessingService = contentProcessingService;
+        this.userRepository = userRepository;
+        this.lectureRepository = lectureRepository;
     }
 
     // 组织者相关API
@@ -209,55 +216,7 @@ public class LectureController {
     
     // 请求DTO类
     
-    public static class CreateLectureRequest {
-        private String title;
-        private String description;
-        private LocalDateTime scheduledTime;
-        private Long presenterId;
-        private Integer quizInterval;
-        
-        // getter and setter
-        
-        public String getTitle() {
-            return title;
-        }
-        
-        public void setTitle(String title) {
-            this.title = title;
-        }
-        
-        public String getDescription() {
-            return description;
-        }
-        
-        public void setDescription(String description) {
-            this.description = description;
-        }
-        
-        public LocalDateTime getScheduledTime() {
-            return scheduledTime;
-        }
-        
-        public void setScheduledTime(LocalDateTime scheduledTime) {
-            this.scheduledTime = scheduledTime;
-        }
-        
-        public Long getPresenterId() {
-            return presenterId;
-        }
-        
-        public void setPresenterId(Long presenterId) {
-            this.presenterId = presenterId;
-        }
-        
-        public Integer getQuizInterval() {
-            return quizInterval;
-        }
-        
-        public void setQuizInterval(Integer quizInterval) {
-            this.quizInterval = quizInterval;
-        }
-    }
+    // 删除此处的CreateLectureRequest内部类，避免与com.popquiz.model.CreateLectureRequest冲突
     
     public static class UpdateLectureRequest {
         private String title;

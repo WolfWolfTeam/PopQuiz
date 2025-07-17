@@ -47,7 +47,7 @@ public class StatisticsController {
             stat.put("quizCount", quizzes.size());
             int totalParticipants = lecture.getAudience().size();
             stat.put("participantCount", totalParticipants);
-            int totalResponses = quizzes.stream().mapToInt(q -> userResponseRepository.countByQuiz(q)).sum();
+            int totalResponses = quizzes.stream().mapToInt(q -> userResponseRepository.countTotalResponsesByQuiz(q)).sum();
             stat.put("totalResponses", totalResponses);
             return stat;
         }).collect(Collectors.toList());
