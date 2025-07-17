@@ -5,7 +5,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { Snackbar, Alert } from '@mui/material';
 import axios from 'axios';
 import WebSocketService from './services/WebSocketService';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { isAuthenticated, getAuthToken, clearAuth } from './utils/auth';
 
 // 布局组件
 import Layout from './components/layout/Layout';
@@ -46,7 +46,7 @@ axios.defaults.headers.common['Content-Type'] = 'application/json';
 // 添加请求拦截器
 axios.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -66,8 +66,7 @@ axios.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       // 清除本地认证信息
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      clearAuth();
       
       // 如果不在登录页，则重定向到登录页
       if (window.location.pathname !== '/login') {
@@ -83,13 +82,7 @@ axios.interceptors.response.use(
  * 需要用户认证才能访问
  */
 const PrivateRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
-  
-  if (loading) {
-    return <div>加载中...</div>;
-  }
-  
-  return isAuthenticated ? children : <Navigate to="/login" />;
+  return isAuthenticated() ? children : <Navigate to="/login" />;
 };
 
 /**
@@ -97,21 +90,13 @@ const PrivateRoute = ({ children }) => {
  * 已认证用户会被重定向到首页
  */
 const PublicOnlyRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
-  
-  if (loading) {
-    return <div>加载中...</div>;
-  }
-  
-  return !isAuthenticated ? children : <Navigate to="/" />;
+  return !isAuthenticated() ? children : <Navigate to="/" />;
 };
 
 /**
  * 应用主组件
  */
-function AppContent() {
-  const { isAuthenticated } = useAuth();
-  
+function App() {
   // 通知状态
   const [notification, setNotification] = useState({
     open: false,
@@ -122,7 +107,7 @@ function AppContent() {
   // 处理WebSocket通知
   useEffect(() => {
     // 当用户已认证，初始化WebSocket连接
-    if (isAuthenticated) {
+    if (isAuthenticated()) {
       WebSocketService.init();
       
       // 监听自定义通知事件
@@ -144,7 +129,7 @@ function AppContent() {
         window.removeEventListener('userNotification', handleNotification);
       };
     }
-  }, [isAuthenticated]);
+  }, []);
   
   // 处理关闭通知
   const handleCloseNotification = (event, reason) => {
@@ -222,19 +207,6 @@ function AppContent() {
         </Alert>
       </Snackbar>
     </ThemeProvider>
-  );
-}
-
-/**
- * 应用根组件
- */
-function App() {
-  return (
-    <AuthProvider>
-      <Router>
-        <AppContent />
-      </Router>
-    </AuthProvider>
   );
 }
 
