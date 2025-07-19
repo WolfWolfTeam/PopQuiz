@@ -38,7 +38,7 @@ public class PopQuizApplication implements ApplicationListener<ApplicationReadyE
                 contextPath = "/" + contextPath;
             }
             
-            log.info("\n----------------------------------------------------------\n\t" +
+            log.info("\n----------------------------------------------pm------------\n\t" +
                     "应用 '{}' 已成功启动! 访问地址:\n\t" +
                     "本地: \t\t{}://localhost:{}{}\n\t" +
                     "外部: \t\t{}://{}:{}{}\n\t" +
