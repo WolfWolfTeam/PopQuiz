@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -19,11 +19,12 @@ import {
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import Avatar from '@mui/material/Avatar';
-import { useAuth } from '../../contexts/AuthContext';
+import axios from 'axios';
+import AuthContext from '../../contexts/AuthContext';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login } = useContext(AuthContext);
   
   // 表单状态
   const [formData, setFormData] = useState({
@@ -94,20 +95,29 @@ const Login = () => {
     setLoading(true);
     
     try {
-      const result = await login(formData.username, formData.password);
+      const response = await axios.post('/api/auth/login', formData);
       
-      if (result.success) {
-        // 登录成功
-        console.log('登录成功');
-        navigate('/dashboard');
-      } else {
-        // 登录失败
-        setErrors({ ...errors, general: result.error });
-      }
+      // 登录成功
+      const { token, user } = response.data;
+      console.log('登录成功，token:', token);
+      console.log('登录成功，user:', user);
+      login(token, user);
+      console.log('login(token, user) 已调用');
+      navigate('/dashboard');
       
     } catch (error) {
       console.error('登录失败:', error);
-      setErrors({ ...errors, general: '网络错误，请稍后再试' });
+      
+      if (error.response && error.response.data) {
+        // 服务器返回的错误信息
+        if (error.response.data.message) {
+          setErrors({ ...errors, general: error.response.data.message });
+        } else {
+          setErrors({ ...errors, general: '登录失败，请检查用户名和密码' });
+        }
+      } else {
+        setErrors({ ...errors, general: '网络错误，请稍后再试' });
+      }
     } finally {
       setLoading(false);
     }
