@@ -35,41 +35,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
-        final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String username;
-        
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            logger.debug("未携带 Authorization Bearer token，直接放行: {}", request.getRequestURI());
-            filterChain.doFilter(request, response);
-            return;
-        }
-        
-        jwt = authHeader.substring(7);
-        logger.debug("收到 JWT token: {}", jwt);
-        username = jwtService.extractUsername(jwt);
-        logger.debug("解析出 username: {}", username);
-        
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
-            boolean valid = jwtService.isTokenValid(jwt, userDetails);
-            logger.debug("token 校验结果: {}", valid);
-            if (valid) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
-                );
-                authToken.setDetails(
-                        new WebAuthenticationDetailsSource().buildDetails(request)
-                );
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-            } else {
-                logger.warn("token 校验失败，返回 401: {}", request.getRequestURI());
-            }
-        } else {
-            logger.warn("username 为空或已认证，跳过 token 校验: {}", request.getRequestURI());
-        }
+        // 所有请求都直接放行，不进行认证检查
+        logger.debug("JWT过滤器：直接放行请求: {}", request.getRequestURI());
         filterChain.doFilter(request, response);
     }
 } 

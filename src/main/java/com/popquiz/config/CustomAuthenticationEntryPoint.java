@@ -14,6 +14,7 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
             throws IOException, ServletException {
-        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "未授权访问");
+        // 不返回401错误，直接放行
+        // response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "未授权访问");
     }
 } 
