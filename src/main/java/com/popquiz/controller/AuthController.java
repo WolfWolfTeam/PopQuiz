@@ -54,9 +54,17 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("message", "邮箱已存在"));
         }
         
-        // 获取角色
-        Role role = roleRepository.findByName(request.getRole())
-                .orElseThrow(() -> new RuntimeException("角色不存在"));
+        // 获取角色 - 根据角色ID查找
+        Role role;
+        try {
+            int roleId = Integer.parseInt(request.getRole());
+            role = roleRepository.findById(roleId)
+                    .orElseThrow(() -> new RuntimeException("角色不存在"));
+        } catch (NumberFormatException e) {
+            // 如果角色ID不是数字，尝试根据名称查找
+            role = roleRepository.findByName(request.getRole())
+                    .orElseThrow(() -> new RuntimeException("角色不存在"));
+        }
         
         // 创建新用户
         User user = new User();

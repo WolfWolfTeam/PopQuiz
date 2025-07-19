@@ -43,20 +43,10 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             // 异常处理
             .exceptionHandling(exception -> exception.authenticationEntryPoint(authenticationEntryPoint))
-            // 请求认证配置
+            // 请求认证配置 - 允许所有请求匿名访问
             .authorizeHttpRequests(auth -> auth
-                // 明确允许登录和注册接口匿名访问
-                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/auth/login").permitAll()
-                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/auth/register").permitAll()
-                // 公开路径
-                .requestMatchers("/", "/api/auth/**", "/auth/**").permitAll()
-                // Swagger UI 相关路径放行
-                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/api/swagger-ui/**", "/api/v3/api-docs/**").permitAll()
-                .requestMatchers("/swagger-ui.html", "/api/swagger-ui.html").permitAll()
-                .requestMatchers("/webjars/**", "/api/webjars/**").permitAll()
-                .requestMatchers("/swagger-resources/**", "/api/swagger-resources/**").permitAll()
-                // 其他所有请求需要身份验证
-                .anyRequest().authenticated()
+                // 所有请求都允许匿名访问
+                .anyRequest().permitAll()
             );
         
         // 添加JWT过滤器
