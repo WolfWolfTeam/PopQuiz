@@ -13,7 +13,7 @@ PopQuiz是一个使用AI技术为演讲和课程生成实时测验题目的系�
 
 ## 技术栈
 
-- **后端**: Java 11, Spring Boot 2.7.5, Spring Security, JPA/Hibernate
+- **后端**: Java 21, Spring Boot 2.7.5, Spring Security, JPA/Hibernate
 - **数据库**: MySQL 8.0
 - **前端**: React, Material-UI
 - **AI集成**: HuggingFace API, deepseek-llm-7b-chat模型
@@ -23,7 +23,7 @@ PopQuiz是一个使用AI技术为演讲和课程生成实时测验题目的系�
 
 ### 前置条件
 
-- JDK 11或更高版本
+- JDK 21
 - Maven 3.6或更高版本
 - MySQL 8.0
 
@@ -53,6 +53,11 @@ PopQuiz是一个使用AI技术为演讲和课程生成实时测验题目的系�
 
 ### 运行应用
 
+前端：
+npm start
+或者
+npx serve -s build -l 3000 --single
+
 Windows系统:
 ```
 run.bat
@@ -67,10 +72,10 @@ Linux/MacOS系统:
 
 ### 默认用户
 
-- 管理员: admin / admin123
-- 组织者: organizer / organizer123
-- 演讲者: speaker / speaker123
-- 参与者: user / user123
+- 管理员: admin / 123456
+- 组织者: organizer / 123456
+- 演讲者: speaker / 123456
+- 参与者: user / 123456
 
 ## 项目结构
 

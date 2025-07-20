@@ -1,6 +1,51 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { Card, CardContent, Typography, Button, Grid, CircularProgress } from '@mui/material';
 
-// 占位组件，后续可根据实际需求完善
-export default function LectureList() {
-  return <div>LectureList 组件占位</div>;
-} 
+const LectureList = () => {
+  const [lectures, setLectures] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    axios.get('/api/organizer/lectures')
+      .then(res => {
+        setLectures(res.data);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError('获取讲座列表失败');
+        setLoading(false);
+      });
+  }, []);
+
+  const handleDetail = (lectureId) => {
+    navigate(`/lectures/${lectureId}`);
+  };
+
+  if (loading) return <CircularProgress />;
+  if (error) return <Typography color="error">{error}</Typography>;
+
+  return (
+    <Grid container spacing={2}>
+      {lectures.map(lecture => (
+        <Grid item xs={12} md={6} lg={4} key={lecture.id}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6">{lecture.title}</Typography>
+              <Typography variant="body2" color="textSecondary">{lecture.description}</Typography>
+              <Typography variant="body2">时间：{lecture.scheduledTime}</Typography>
+              <Button variant="contained" sx={{ mt: 2 }} onClick={() => handleDetail(lecture.id)}>
+                查看详情
+              </Button>
+            </CardContent>
+          </Card>
+        </Grid>
+      ))}
+    </Grid>
+  );
+};
+
+export default LectureList; 
