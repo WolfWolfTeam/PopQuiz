@@ -62,15 +62,15 @@ const QuizResults = () => {
         setQuiz(quizResponse.data);
         
         // 获取用户在此测验的结果
-        const userResultsResponse = await axios.get(`/api/quizzes/${quizId}/user-results`);
+        const userResultsResponse = await axios.get(`/api/audience/quizzes/${quizId}/user-results`);
         setResults(userResultsResponse.data);
         
         // 获取用户在此测验的统计信息
-        const userStatsResponse = await axios.get(`/api/quizzes/${quizId}/user-stats`);
+        const userStatsResponse = await axios.get(`/api/audience/quizzes/${quizId}/user-stats`);
         setUserStats(userStatsResponse.data);
         
         // 获取此测验的整体统计信息
-        const overallStatsResponse = await axios.get(`/api/quizzes/${quizId}/stats`);
+        const overallStatsResponse = await axios.get(`/api/audience/quizzes/${quizId}/stats`);
         setOverallStats(overallStatsResponse.data);
         
       } catch (error) {

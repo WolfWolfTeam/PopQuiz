@@ -206,7 +206,7 @@ const QuizPlay = () => {
       });
       
       // 提交答案
-      const response = await axios.post(`/api/quizzes/${quizId}/submit`, {
+      const response = await axios.post(`/api/audience/quizzes/${quizId}/submit`, {
         responses: responses
       });
       

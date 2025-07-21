@@ -35,8 +35,49 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
-        // 所有请求都直接放行，不进行认证检查
-        logger.debug("JWT过滤器：直接放行请求: {}", request.getRequestURI());
+        final String authHeader = request.getHeader("Authorization");
+        final String jwt;
+        final String username;
+        logger.info("[JWT过滤器] 处理请求路径: {}", request.getRequestURI());
+        logger.info("[JWT过滤器] Authorization header: {}", authHeader);
+        // 检查Authorization头部
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            logger.warn("[JWT过滤器] 没有Bearer token，继续过滤器链");
+            filterChain.doFilter(request, response);
+            return;
+        }
+        // 提取JWT token
+        jwt = authHeader.substring(7);
+        logger.info("[JWT过滤器] 提取到token前20位: {}", jwt.substring(0, Math.min(20, jwt.length())));
+        try {
+            // 从token中提取用户名
+            username = jwtService.extractUsername(jwt);
+            logger.info("[JWT过滤器] 提取到用户名: {}", username);
+            // 如果用户名存在且当前没有认证信息
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                // 加载用户详情
+                UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
+                logger.info("[JWT过滤器] 加载用户详情: {}", userDetails.getUsername());
+                // 验证token
+                if (jwtService.isTokenValid(jwt, userDetails)) {
+                    logger.info("[JWT过滤器] token验证成功");
+                    // 创建认证token
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities()
+                    );
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                } else {
+                    logger.warn("[JWT过滤器] token验证失败");
+                }
+            } else {
+                logger.warn("[JWT过滤器] 用户名为空或已认证: {}", username);
+            }
+        } catch (Exception e) {
+            logger.error("[JWT过滤器] 解析或认证token异常: {}", e.getMessage(), e);
+        }
         filterChain.doFilter(request, response);
     }
 } 

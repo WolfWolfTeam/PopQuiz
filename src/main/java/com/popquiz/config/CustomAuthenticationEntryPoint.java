@@ -14,7 +14,12 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
             throws IOException, ServletException {
-        // 不返回401错误，直接放行
-        // response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "未授权访问");
+        // 设置响应状态码和内容类型
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json;charset=UTF-8");
+        
+        // 返回JSON格式的错误信息
+        String errorMessage = "{\"message\":\"需要登录\"}";
+        response.getWriter().write(errorMessage);
     }
 } 

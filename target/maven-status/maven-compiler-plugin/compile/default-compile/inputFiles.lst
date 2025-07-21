@@ -8,6 +8,7 @@ E:\Study\IdeaProjects\PopQuiz\src\main\java\com\popquiz\model\DiscussionComment.
 E:\Study\IdeaProjects\PopQuiz\src\main\java\com\popquiz\model\LoginRequest.java
 E:\Study\IdeaProjects\PopQuiz\src\main\java\com\popquiz\service\ContentProcessingService.java
 E:\Study\IdeaProjects\PopQuiz\src\main\java\com\popquiz\model\UserQuizStatistics.java
+E:\Study\IdeaProjects\PopQuiz\src\main\java\com\popquiz\config\SwaggerConfig.java
 E:\Study\IdeaProjects\PopQuiz\src\main\java\com\popquiz\controller\LectureController.java
 E:\Study\IdeaProjects\PopQuiz\src\main\java\com\popquiz\service\FeedbackService.java
 E:\Study\IdeaProjects\PopQuiz\src\main\java\com\popquiz\model\Feedback.java

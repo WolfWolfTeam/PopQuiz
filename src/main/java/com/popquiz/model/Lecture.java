@@ -1,5 +1,6 @@
 package com.popquiz.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -19,6 +20,7 @@ import java.util.Set;
 @AllArgsConstructor
 @Entity
 @Table(name = "lectures")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Lecture {
     
     @Id

@@ -43,10 +43,19 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             // 异常处理
             .exceptionHandling(exception -> exception.authenticationEntryPoint(authenticationEntryPoint))
-            // 请求认证配置 - 允许所有请求匿名访问
+            // 请求认证配置
             .authorizeHttpRequests(auth -> auth
-                // 所有请求都允许匿名访问
-                .anyRequest().permitAll()
+                // 公开接口
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/public/**").permitAll()
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .requestMatchers("/ws/**").permitAll()
+                // 需要认证的接口
+                .requestMatchers("/api/audience/**").authenticated()
+                .requestMatchers("/api/presenter/**").authenticated()
+                .requestMatchers("/api/organizer/**").authenticated()
+                // 其他请求需要认证
+                .anyRequest().authenticated()
             );
         
         // 添加JWT过滤器

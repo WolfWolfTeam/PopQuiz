@@ -5,6 +5,7 @@ import com.popquiz.ai.QuizOption;
 import com.popquiz.ai.QuizQuestion;
 import com.popquiz.model.*;
 import com.popquiz.repository.*;
+import com.popquiz.controller.QuizController;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * 测验服务
@@ -253,6 +256,203 @@ public class QuizService {
     }
     
     /**
+     * 批量提交测验答案
+     */
+    @Transactional
+    public List<UserResponse> submitQuizAnswers(Long userId, Long quizId, List<QuizController.QuizResponse> responses) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new RuntimeException("测验不存在"));
+        
+        // 检查测验是否已过期
+        if (quiz.getStatus() != Quiz.QuizStatus.ACTIVE || (quiz.getExpiresAt() != null && LocalDateTime.now().isAfter(quiz.getExpiresAt()))) {
+            throw new RuntimeException("测验已经结束，无法提交答案");
+        }
+        
+        List<UserResponse> savedResponses = new ArrayList<>();
+        
+        for (QuizController.QuizResponse response : responses) {
+            Question question = questionRepository.findById(response.getQuestionId())
+                    .orElseThrow(() -> new RuntimeException("问题不存在: " + response.getQuestionId()));
+            
+            // 检查问题是否属于此测验
+            if (!question.getQuiz().getId().equals(quizId)) {
+                throw new RuntimeException("问题不属于此测验: " + response.getQuestionId());
+            }
+            
+            // 检查用户是否已经回答过这个问题
+            Optional<UserResponse> existingResponse = userResponseRepository.findByUserAndQuestion(user, question);
+            if (existingResponse.isPresent()) {
+                // 跳过已回答的问题
+                continue;
+            }
+            
+            UserResponse userResponse = new UserResponse();
+            userResponse.setUser(user);
+            userResponse.setQuestion(question);
+            userResponse.setQuiz(quiz);
+            userResponse.setResponseTimeMs(response.getResponseTimeMs());
+            
+            // 根据问题类型处理答案
+            if (question.getType() == Question.QuestionType.MULTIPLE_CHOICE || 
+                question.getType() == Question.QuestionType.MULTIPLE_ANSWER) {
+                
+                List<Long> optionIds = new ArrayList<>();
+                if (response.getSelectedOptionId() != null) {
+                    optionIds.add(response.getSelectedOptionId());
+                }
+                if (response.getSelectedOptionIds() != null) {
+                    optionIds.addAll(response.getSelectedOptionIds());
+                }
+                
+                // 处理选择题
+                for (Long optionId : optionIds) {
+                    Option option = question.getOptions().stream()
+                            .filter(o -> o.getId().equals(optionId))
+                            .findFirst()
+                            .orElseThrow(() -> new RuntimeException("选项不存在: " + optionId));
+                    userResponse.getSelectedOptions().add(option);
+                    
+                    // 更新选择次数
+                    option.incrementSelectedCount();
+                }
+                
+                // 判断答案是否正确
+                if (question.getType() == Question.QuestionType.MULTIPLE_CHOICE) {
+                    // 单选题：选择一个且正确
+                    if (optionIds.size() == 1) {
+                        Option selectedOption = question.getOptions().stream()
+                                .filter(o -> o.getId().equals(optionIds.get(0)))
+                                .findFirst()
+                                .orElse(null);
+                        userResponse.setCorrect(selectedOption != null && selectedOption.getCorrect());
+                    } else {
+                        userResponse.setCorrect(false);
+                    }
+                } else {
+                    // 多选题：所有正确的选项都被选中，且没有选错误的选项
+                    List<Option> correctOptions = question.getOptions().stream()
+                            .filter(Option::getCorrect)
+                            .collect(Collectors.toList());
+                    List<Option> incorrectOptions = question.getOptions().stream()
+                            .filter(o -> !o.getCorrect())
+                            .collect(Collectors.toList());
+                    
+                    boolean allCorrectOptionsSelected = correctOptions.stream()
+                            .allMatch(o -> optionIds.contains(o.getId()));
+                    boolean noIncorrectOptionsSelected = incorrectOptions.stream()
+                            .noneMatch(o -> optionIds.contains(o.getId()));
+                    
+                    userResponse.setCorrect(allCorrectOptionsSelected && noIncorrectOptionsSelected);
+                }
+            } else if (question.getType() == Question.QuestionType.SHORT_ANSWER) {
+                // 处理简答题
+                userResponse.setTextResponse(response.getTextResponse());
+                // 简答题需要人工判断或更复杂的AI比对
+                userResponse.setCorrect(false);
+            }
+            
+            UserResponse savedResponse = userResponseRepository.save(userResponse);
+            savedResponses.add(savedResponse);
+        }
+        
+        // 更新统计信息
+        notificationService.sendStatisticsUpdate(quiz.getId());
+        
+        return savedResponses;
+    }
+    
+    /**
+     * 获取用户在测验中的答题详情
+     */
+    public List<UserResponse> getUserQuizResponses(Long userId, Long quizId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new RuntimeException("测验不存在"));
+        
+        return userResponseRepository.findByUserAndQuizOrderByQuestionSequenceNumber(user, quiz);
+    }
+    
+    /**
+     * 获取用户测验详细统计信息
+     */
+    public Map<String, Object> getUserQuizDetailedStats(Long userId, Long quizId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new RuntimeException("测验不存在"));
+        
+        List<UserResponse> responses = userResponseRepository.findByUserAndQuizOrderByQuestionSequenceNumber(user, quiz);
+        
+        int totalQuestions = quiz.getQuestions().size();
+        int answeredQuestions = responses.size();
+        int correctAnswers = (int) responses.stream().filter(UserResponse::getCorrect).count();
+        int wrongAnswers = answeredQuestions - correctAnswers;
+        
+        // 计算总分
+        double score = totalQuestions > 0 ? (double) correctAnswers / totalQuestions * 100 : 0;
+        
+        // 计算总用时
+        long totalTimeMs = responses.stream()
+                .mapToLong(response -> response.getResponseTimeMs() != null ? response.getResponseTimeMs() : 0)
+                .sum();
+        
+        // 计算排名
+        int rank = calculateUserRank(userId, quizId, score);
+        
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("userId", userId);
+        stats.put("quizId", quizId);
+        stats.put("totalQuestions", totalQuestions);
+        stats.put("answeredQuestions", answeredQuestions);
+        stats.put("correctAnswers", correctAnswers);
+        stats.put("wrongAnswers", wrongAnswers);
+        stats.put("score", Math.round(score * 100.0) / 100.0); // 保留两位小数
+        stats.put("totalTimeMs", totalTimeMs);
+        stats.put("rank", rank);
+        
+        return stats;
+    }
+    
+    /**
+     * 获取测验详细统计信息
+     */
+    public Map<String, Object> getQuizDetailedStats(Long quizId) {
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new RuntimeException("测验不存在"));
+        
+        int totalQuestions = quiz.getQuestions().size();
+        int participantCount = userResponseRepository.countDistinctUsersByQuiz(quiz);
+        int totalResponses = userResponseRepository.countTotalResponsesByQuiz(quiz);
+        int correctResponses = userResponseRepository.countCorrectResponsesByQuiz(quiz);
+        
+        double averageScore = participantCount > 0 ? (double) correctResponses / (participantCount * totalQuestions) * 100 : 0;
+        
+        // 计算平均用时
+        long averageTimeMs = userResponseRepository.getAverageResponseTimeByQuiz(quiz);
+        
+        // 计算分数分布
+        Map<String, Integer> scoreDistribution = calculateScoreDistribution(quizId);
+        
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("quizId", quizId);
+        stats.put("totalQuestions", totalQuestions);
+        stats.put("participantCount", participantCount);
+        stats.put("totalResponses", totalResponses);
+        stats.put("correctResponses", correctResponses);
+        stats.put("averageScore", Math.round(averageScore * 100.0) / 100.0);
+        stats.put("averageTimeMs", averageTimeMs);
+        stats.put("scoreDistribution", scoreDistribution);
+        
+        return stats;
+    }
+    
+    /**
      * 获取测验统计信息
      */
     public QuizStatistics getQuizStatistics(Long quizId) {
@@ -321,6 +521,48 @@ public class QuizService {
             // 发送测验过期通知
             notificationService.broadcastQuizExpired(expiredQuiz);
         }
+    }
+    
+    /**
+     * 计算用户排名
+     */
+    private int calculateUserRank(Long userId, Long quizId, double userScore) {
+        // 获取所有参与此测验的用户及其分数
+        List<Object[]> userScores = userResponseRepository.getUserScoresByQuiz(quizId);
+        
+        // 按分数降序排序
+        userScores.sort((a, b) -> Double.compare((Double) b[1], (Double) a[1]));
+        
+        // 查找用户排名
+        for (int i = 0; i < userScores.size(); i++) {
+            if (userScores.get(i)[0].equals(userId)) {
+                return i + 1;
+            }
+        }
+        
+        return 1; // 默认排名
+    }
+    
+    /**
+     * 计算分数分布
+     */
+    private Map<String, Integer> calculateScoreDistribution(Long quizId) {
+        List<Object[]> scoreRanges = userResponseRepository.getScoreDistributionByQuiz(quizId);
+        
+        Map<String, Integer> distribution = new HashMap<>();
+        distribution.put("0-59", 0);
+        distribution.put("60-69", 0);
+        distribution.put("70-79", 0);
+        distribution.put("80-89", 0);
+        distribution.put("90-100", 0);
+        
+        for (Object[] range : scoreRanges) {
+            String rangeKey = (String) range[0];
+            Integer count = ((Number) range[1]).intValue();
+            distribution.put(rangeKey, count);
+        }
+        
+        return distribution;
     }
     
     /**

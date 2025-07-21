@@ -42,6 +42,39 @@ public interface UserResponseRepository extends JpaRepository<UserResponse, Long
     
     @Query("SELECT COUNT(DISTINCT r.user) FROM UserResponse r WHERE r.quiz IN :quizzes")
     long countDistinctUsersByQuizIn(@Param("quizzes") List<Quiz> quizzes);
+
+    // 按问题序号排序获取用户的答题记录
+    @Query("SELECT r FROM UserResponse r WHERE r.user = :user AND r.quiz = :quiz ORDER BY r.question.sequenceNumber ASC")
+    List<UserResponse> findByUserAndQuizOrderByQuestionSequenceNumber(User user, Quiz quiz);
+
+    // 获取测验的平均答题时间（毫秒）
+    @Query("SELECT AVG(r.responseTimeMs) FROM UserResponse r WHERE r.quiz = :quiz AND r.responseTimeMs IS NOT NULL")
+    Long getAverageResponseTimeByQuiz(Quiz quiz);
+
+    // 获取所有参与测验的用户及其分数
+    @Query("SELECT r.user.id, " +
+           "CAST(COUNT(CASE WHEN r.correct = true THEN 1 END) * 100.0 / COUNT(r) AS double) " +
+           "FROM UserResponse r " +
+           "WHERE r.quiz.id = :quizId " +
+           "GROUP BY r.user.id " +
+           "ORDER BY COUNT(CASE WHEN r.correct = true THEN 1 END) * 100.0 / COUNT(r) DESC")
+    List<Object[]> getUserScoresByQuiz(@Param("quizId") Long quizId);
+
+    // 获取分数分布
+    @Query("SELECT " +
+           "CASE " +
+           "  WHEN CAST(COUNT(CASE WHEN r.correct = true THEN 1 END) * 100.0 / COUNT(r) AS double) < 60 THEN '0-59' " +
+           "  WHEN CAST(COUNT(CASE WHEN r.correct = true THEN 1 END) * 100.0 / COUNT(r) AS double) < 70 THEN '60-69' " +
+           "  WHEN CAST(COUNT(CASE WHEN r.correct = true THEN 1 END) * 100.0 / COUNT(r) AS double) < 80 THEN '70-79' " +
+           "  WHEN CAST(COUNT(CASE WHEN r.correct = true THEN 1 END) * 100.0 / COUNT(r) AS double) < 90 THEN '80-89' " +
+           "  ELSE '90-100' " +
+           "END as scoreRange, " +
+           "COUNT(DISTINCT r.user) as userCount " +
+           "FROM UserResponse r " +
+           "WHERE r.quiz.id = :quizId " +
+           "GROUP BY r.user.id " +
+           "ORDER BY scoreRange")
+    List<Object[]> getScoreDistributionByQuiz(@Param("quizId") Long quizId);
     
     @Query("SELECT COUNT(r) FROM UserResponse r WHERE r.user = :user AND r.quiz IN :quizzes")
     long countByUserAndQuizIn(@Param("user") User user, @Param("quizzes") List<Quiz> quizzes);
