@@ -19,4 +19,5 @@ target/
 
 # Test/coverage
 coverage/
- 
+ "venv/" 
+"frontend/venv/" 
