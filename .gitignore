@@ -17,7 +17,9 @@ Thumbs.db
 target/
 *.class
 
-# Test/coverage
+# Python 虚拟环境
+venv/
+frontend/venv/
+
+# 测试覆盖率
 coverage/
- "venv/" 
-"frontend/venv/" 

@@ -1,4 +1,4 @@
-package com.popquiz.model;
+package com.popquiz.dto;
 
 import java.util.List;
 

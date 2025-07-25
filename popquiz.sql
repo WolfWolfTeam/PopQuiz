@@ -253,4 +253,4 @@ SELECT q.id, '强化学习', FALSE, 'D' FROM `questions` q WHERE q.content = '�
 INSERT INTO `badges` (`name`, `description`, `icon_url`, `type`, `created_at`) VALUES ('首测达人', '完成首次测验', NULL, 'ACHIEVEMENT', NOW());
 
 -- 给user分配徽章
-INSERT INTO `user_badge` (`user_id`, `badge_id`) SELECT u.id, b.id FROM `user` u, `badges` b WHERE u.username = 'user' AND b.name = '首测达人'; 
+INSERT INTO `user_badge` (`user_id`, `badge_id`) SELECT u.id, b.id FROM `user` u, `badges` b WHERE u.username = 'user' AND b.name = '首测达人';
