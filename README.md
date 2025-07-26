@@ -108,3 +108,29 @@ popquiz/
 ```
 http://localhost:8080/api/swagger-ui/index.html
 ```
+
+## API Key 配置说明
+
+项目中调用 AI 模型需要使用 API Key，请按照以下步骤进行配置：
+
+1. 打开项目 `src/main/resources/application.properties` 文件。
+
+2. 找到或新增以下配置项：
+
+   ```properties
+   huggingface.api-key=你的真实API密钥
+   ```
+
+4. 或使用环境变量覆盖：
+
+   ```bash
+   export HUGGINGFACE_API_KEY=你的真实API密钥
+   ```
+
+5. 修改后，重启应用生效。
+
+### 备注
+
+* 代码中使用 Spring 的 `@Value("${huggingface.api-key}")` 注解读取该配置。
+* 请务必妥善保管 API Key，**不要将真实密钥直接提交到公共仓库**，避免泄露造成安全风险。
+
