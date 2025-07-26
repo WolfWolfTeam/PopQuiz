@@ -11,18 +11,23 @@ import java.util.List;
 
 @Repository
 public interface QuizRepository extends JpaRepository<Quiz, Long> {
-    
+
     List<Quiz> findByLecture(Lecture lecture);
-    
+
     List<Quiz> findByLectureOrderBySequenceNumberAsc(Lecture lecture);
-    
+
     List<Quiz> findByStatus(Quiz.QuizStatus status);
-    
+
     List<Quiz> findByStatusAndExpiresAtBefore(Quiz.QuizStatus status, LocalDateTime now);
-    
+
     @Query("SELECT q FROM Quiz q WHERE q.lecture.id IN :lectureIds")
     List<Quiz> findByLectureIn(@Param("lectureIds") List<Long> lectureIds);
-    
+
     @Query("SELECT q FROM Quiz q WHERE q.lecture.id IN :lectureIds AND q.status = :status")
     List<Quiz> findByLectureInAndStatus(@Param("lectureIds") List<Long> lectureIds, @Param("status") Quiz.QuizStatus status);
-} 
+
+    int countByLecture(Lecture lecture);
+
+    long countByStatus(Quiz.QuizStatus status);
+
+}

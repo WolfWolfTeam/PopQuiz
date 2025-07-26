@@ -12,8 +12,15 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class QuizOption {
-    
+
     private char label;
     private String content;
     private boolean isCorrect;
-} 
+
+    private String text;
+
+    public String getText() {
+        return text;
+    }
+
+}

@@ -14,4 +14,5 @@ public class QuizDto {
     private LocalDateTime expiresAt;
     private Integer timeLimit;
     private Long lectureId;
+    private Integer questionCount;
 }

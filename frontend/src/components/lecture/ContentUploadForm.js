@@ -129,21 +129,22 @@ const ContentUploadForm = ({ lectureId, onUploaded, onCancel }) => {
       
       // 发送上传请求，并跟踪进度
       const response = await axios.post(
-        `/api/lectures/${lectureId}/contents`,
-        uploadFormData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          },
-          onUploadProgress: (progressEvent) => {
-            const percentCompleted = Math.round(
-              (progressEvent.loaded * 100) / progressEvent.total
-            );
-            setUploadProgress(percentCompleted);
+          `/api/presenter/lectures/${lectureId}/content`,
+          uploadFormData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              'Authorization': 'Bearer ' + localStorage.getItem('token') // 如果后端有鉴权
+            },
+            onUploadProgress: (progressEvent) => {
+              const percentCompleted = Math.round(
+                  (progressEvent.loaded * 100) / progressEvent.total
+              );
+              setUploadProgress(percentCompleted);
+            }
           }
-        }
       );
-      
+
       // 上传成功，通知父组件
       if (onUploaded && typeof onUploaded === 'function') {
         onUploaded(response.data);

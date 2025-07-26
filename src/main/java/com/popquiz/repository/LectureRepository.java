@@ -33,4 +33,8 @@ public interface LectureRepository extends JpaRepository<Lecture, Long> {
 
     @Query("SELECT l FROM Lecture l WHERE l.organizer = :organizer OR l.presenter = :presenter")
     List<Lecture> findByOrganizerOrPresenter(@Param("organizer") User organizer, @Param("presenter") User presenter);
-} 
+
+    long countByStatus(Lecture.LectureStatus status);
+
+    List<Lecture> findTop5ByOrderByScheduledTimeDesc();
+}

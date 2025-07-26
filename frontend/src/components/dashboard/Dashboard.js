@@ -74,15 +74,16 @@ const Dashboard = () => {
   
   // 根据用户角色获取仪表盘标题
   const getDashboardTitle = () => {
-    if (user?.roles?.includes('ORGANIZER')) {
-      return '组织者仪表盘';
-    } else if (user?.roles?.includes('SPEAKER')) {
-      return '演讲者仪表盘';
-    } else {
-      return '听众仪表盘';
-    }
+    if (!user) return '无用户信息';
+
+    // 兼容单角色字符串
+    const roles = user.roles || (user.role ? [user.role] : []);
+
+    if (roles.includes('ROLE_ORGANIZER')) return '组织者仪表盘';
+    if (roles.includes('ROLE_SPEAKER')) return '演讲者仪表盘';
+    return '听众仪表盘';
   };
-  
+
   // 根据用户角色获取主要操作按钮
   const getPrimaryAction = () => {
     if (user?.roles?.includes('ORGANIZER')) {

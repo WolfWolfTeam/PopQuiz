@@ -6,7 +6,8 @@ class WebSocketService {
   constructor() {
     this.stompClient = null;
     this.connected = false;
-    this.subscriptions = new Map();
+    this.subscriptions = new Map(); // topic -> callback
+    this.subscriptionRefs = new Map(); // topic -> stomp subscription object
     this.reconnectTimeout = null;
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
@@ -16,8 +17,7 @@ class WebSocketService {
     if (this.connected || this.stompClient?.connected) return;
 
     try {
-      const socket = new SockJS('/ws');
-      this.stompClient = Stomp.over(socket);
+      this.stompClient = Stomp.over(() => new SockJS('http://localhost:8080/ws'));
       this.stompClient.debug = () => {};
       const token = getAuthToken();
 
@@ -37,7 +37,6 @@ class WebSocketService {
     this.connected = true;
     this.reconnectAttempts = 0;
 
-    // 恢复所有订阅
     for (const [topic, callback] of this.subscriptions.entries()) {
       this._safeSubscribe(topic, callback);
     }
@@ -54,7 +53,6 @@ class WebSocketService {
 
   scheduleReconnect() {
     if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
-
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.warn('⚠️ 已达到最大重连次数，停止尝试连接');
       return;
@@ -71,18 +69,17 @@ class WebSocketService {
   subscribe(topic, callback) {
     this.subscriptions.set(topic, callback);
 
-    // 延迟订阅，等连接建立好
     if (this.connected && this.stompClient?.connected) {
       return this._safeSubscribe(topic, callback);
     } else {
-      this.init(); // 触发连接
+      this.init();
       return null;
     }
   }
 
   _safeSubscribe(topic, callback) {
     try {
-      return this.stompClient.subscribe(topic, (message) => {
+      const sub = this.stompClient.subscribe(topic, (message) => {
         try {
           const parsed = JSON.parse(message.body);
           callback(parsed);
@@ -90,27 +87,29 @@ class WebSocketService {
           console.error('解析消息失败:', e);
         }
       });
+
+      this.subscriptionRefs.set(topic, sub);
+      return sub;
     } catch (err) {
-      console.error(`订阅 ${topic} 失败:`, err);
+      console.warn(`🟡 无法订阅 ${topic}，STOMP尚未连接`);
       return null;
     }
   }
 
   unsubscribe(topic) {
-    if (this.connected && this.stompClient?.connected) {
-      const sub = this.stompClient.subscription(topic);
-      if (sub) sub.unsubscribe();
+    const sub = this.subscriptionRefs.get(topic);
+    if (sub) {
+      sub.unsubscribe();
+      this.subscriptionRefs.delete(topic);
     }
     this.subscriptions.delete(topic);
   }
 
   unsubscribeAll() {
-    if (this.connected && this.stompClient?.connected) {
-      for (const topic of this.subscriptions.keys()) {
-        const sub = this.stompClient.subscription(topic);
-        if (sub) sub.unsubscribe();
-      }
+    for (const [topic, sub] of this.subscriptionRefs.entries()) {
+      sub.unsubscribe();
     }
+    this.subscriptionRefs.clear();
     this.subscriptions.clear();
   }
 
