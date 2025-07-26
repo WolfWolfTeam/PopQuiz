@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import okhttp3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -22,11 +24,14 @@ public class HuggingFaceService {
     private final OkHttpClient client;
     private final ObjectMapper objectMapper;
 
-    // DeepSeek官方API Key
-    private final String apiToken = "sk-c46adcbbf37142a092a8a6dba3726d3f";
-    private final String modelEndpoint = "https://api.deepseek.com/v1/chat/completions";
-    // deepseek-chat：适合通用问答、结构化输出
-    private final String modelName = "deepseek-chat";
+    @Value("${huggingface.api-token}")
+    private String apiToken;
+
+    @Value("${huggingface.model-endpoint}")
+    private String modelEndpoint;
+
+    @Value("${huggingface.model-name}")
+    private String modelName;
 
     public HuggingFaceService() {
         this.client = new OkHttpClient.Builder()
