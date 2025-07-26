@@ -1,19 +1,19 @@
 package com.popquiz.controller;
 
+import com.popquiz.ai.QuizOption;
+import com.popquiz.ai.QuizQuestion;
+import com.popquiz.dto.ContentDto;
 import com.popquiz.dto.LectureDto;
 import com.popquiz.dto.QuizDto;
 import com.popquiz.mapper.LectureMapper;
 import com.popquiz.mapper.QuizMapper;
-import com.popquiz.model.Content;
-import com.popquiz.model.Lecture;
-import com.popquiz.model.Quiz;
-import com.popquiz.model.User;
-import com.popquiz.model.CreateLectureRequest;
+import com.popquiz.model.*;
 import com.popquiz.repository.LectureRepository;
-import com.popquiz.repository.UserRepository;
 import com.popquiz.repository.QuizRepository;
+import com.popquiz.repository.UserRepository;
 import com.popquiz.service.ContentProcessingService;
 import com.popquiz.service.LectureService;
+import com.popquiz.service.QuizService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,6 +22,7 @@ import java.security.Principal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api")
@@ -29,6 +30,7 @@ public class LectureController {
 
     private final LectureService lectureService;
     private final ContentProcessingService contentProcessingService;
+    private final QuizService quizService;              // ← 新增注入
     private final UserRepository userRepository;
     private final LectureRepository lectureRepository;
     private final QuizRepository quizRepository;
@@ -36,11 +38,13 @@ public class LectureController {
     public LectureController(
             LectureService lectureService,
             ContentProcessingService contentProcessingService,
+            QuizService quizService,                  // ← 新增参数
             UserRepository userRepository,
             LectureRepository lectureRepository,
             QuizRepository quizRepository) {
         this.lectureService = lectureService;
         this.contentProcessingService = contentProcessingService;
+        this.quizService = quizService;              // ← 赋值
         this.userRepository = userRepository;
         this.lectureRepository = lectureRepository;
         this.quizRepository = quizRepository;
@@ -160,11 +164,13 @@ public class LectureController {
     }
 
     @GetMapping("/lectures/{lectureId}/contents")
-    public ResponseEntity<List<Content>> getLectureContents(@PathVariable Long lectureId) {
+    public ResponseEntity<List<ContentDto>> getLectureContents(@PathVariable Long lectureId) {
         Lecture lecture = lectureRepository.findById(lectureId)
                 .orElseThrow(() -> new RuntimeException("讲座不存在"));
-        List<Content> contents = lecture.getContents();
-        return ResponseEntity.ok(contents);
+        List<ContentDto> contentDtos = lecture.getContents().stream()
+                .map(ContentDto::from)
+                .toList();
+        return ResponseEntity.ok(contentDtos);
     }
 
     @GetMapping("/lectures/{lectureId}/quizzes")
@@ -197,13 +203,40 @@ public class LectureController {
         return ResponseEntity.ok(LectureMapper.toDto(lecture));
     }
 
+    // ========= DTO 内部类 =========
+
+    public static class QuestionPreviewDto {
+        private String content;
+        private String explanation;
+        private List<OptionPreviewDto> options;
+        public String getContent() { return content; }
+        public void setContent(String content) { this.content = content; }
+        public String getExplanation() { return explanation; }
+        public void setExplanation(String explanation) { this.explanation = explanation; }
+        public List<OptionPreviewDto> getOptions() { return options; }
+        public void setOptions(List<OptionPreviewDto> options) { this.options = options; }
+    }
+
+    public static class OptionPreviewDto {
+        private String label;
+        private String content;
+        private boolean correct;
+        public String getLabel() { return label; }
+        public void setLabel(String label) { this.label = label; }
+        public String getContent() { return content; }
+        public void setContent(String content) { this.content = content; }
+        public boolean isCorrect() { return correct; }
+        public void setCorrect(boolean correct) { this.correct = correct; }
+    }
+
+    // ========= 内部请求 DTO =========
+
     public static class UpdateLectureRequest {
         private String title;
         private String description;
         private LocalDateTime scheduledTime;
         private Long presenterId;
         private Integer quizInterval;
-
         public String getTitle() { return title; }
         public void setTitle(String title) { this.title = title; }
         public String getDescription() { return description; }
@@ -221,4 +254,5 @@ public class LectureController {
         public String getAccessCode() { return accessCode; }
         public void setAccessCode(String accessCode) { this.accessCode = accessCode; }
     }
+
 }

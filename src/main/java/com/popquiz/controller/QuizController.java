@@ -1,6 +1,13 @@
 package com.popquiz.controller;
 
-import com.popquiz.model.*;
+import com.popquiz.ai.QuizQuestion;
+import com.popquiz.dto.QuizDto;
+import com.popquiz.mapper.QuizMapper;
+import com.popquiz.model.Lecture;
+import com.popquiz.model.Question;
+import com.popquiz.model.Quiz;
+import com.popquiz.model.User;
+import com.popquiz.model.UserResponse;
 import com.popquiz.repository.LectureRepository;
 import com.popquiz.repository.QuestionRepository;
 import com.popquiz.repository.QuizRepository;
@@ -11,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -41,444 +49,324 @@ public class QuizController {
         this.notificationService = notificationService;
     }
 
-    // 演讲者相关API
-
-    @PostMapping("/presenter/lectures/{lectureId}/quizzes")
-    public ResponseEntity<?> createQuiz(
+    // ========== 1. AI 预览出题 ==========
+    @PostMapping("/lectures/{lectureId}/generate-quiz")
+    public ResponseEntity<?> previewGeneratedQuestions(
             @PathVariable Long lectureId,
-            @RequestBody CreateQuizRequest request,
-            Principal principal) {
+            @RequestParam int questionCount,
+            @RequestParam int optionCount,
+            @RequestParam int difficultyLevel,
+            Principal principal
+    ) {
         try {
-            User presenter = userRepository.findByUsername(principal.getName())
-                    .orElseThrow(() -> new RuntimeException("用户不存在"));
-
-            Lecture lecture = lectureRepository.findById(lectureId)
-                    .orElseThrow(() -> new RuntimeException("讲座不存在"));
-
-            // 检查权限
-            if (!lecture.getPresenter().getId().equals(presenter.getId())) {
-                return ResponseEntity.status(403).body(Map.of("message", "无权为此讲座创建测验"));
-            }
-
-            // 创建测验
-            Quiz quiz = quizService.createQuizForLecture(
-                    lectureId,
-                    request.getTitle(),
-                    request.getQuestionCount(),
-                    request.getDifficultyLevel());
-
-            return ResponseEntity.ok(quiz);
+            List<QuizQuestion> preview =
+                    quizService.generateQuizQuestions(lectureId, questionCount, optionCount, difficultyLevel);
+            return ResponseEntity.ok(preview);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", e.getMessage()));
         }
     }
 
-    @PostMapping("/presenter/quizzes/{quizId}/publish")
-    public ResponseEntity<?> publishQuiz(
-            @PathVariable Long quizId,
-            @RequestBody PublishQuizRequest request,
-            Principal principal) {
-        try {
-            Quiz quiz = quizRepository.findById(quizId)
-                    .orElseThrow(() -> new RuntimeException("测验不存在"));
-
-            User presenter = userRepository.findByUsername(principal.getName())
-                    .orElseThrow(() -> new RuntimeException("用户不存在"));
-
-            // 检查权限
-            if (!quiz.getLecture().getPresenter().getId().equals(presenter.getId())) {
-                return ResponseEntity.status(403).body(Map.of("message", "无权发布此测验"));
-            }
-
-            // 发布测验
-            Quiz publishedQuiz = quizService.publishQuiz(quizId, request.getTimeLimit());
-            return ResponseEntity.ok(publishedQuiz);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        }
+    // ========== 2. 主讲人：创建测验 ==========
+    @PostMapping("/presenter/lectures/{lectureId}/quizzes")
+    public ResponseEntity<QuizDto> createQuiz(
+            @PathVariable Long lectureId,
+            @RequestBody CreateQuizRequest req,
+            Principal principal
+    ) {
+        Quiz quiz = quizService.createQuizForLecture(
+                lectureId, req.getTitle(), req.getQuestionCount(), req.getDifficultyLevel());
+        return ResponseEntity.ok(QuizMapper.toDto(quiz));
     }
-
-    @PostMapping("/presenter/quizzes/{quizId}/activate")
-    public ResponseEntity<?> activateQuiz(@PathVariable Long quizId, Principal principal) {
-        try {
-            Quiz quiz = quizRepository.findById(quizId)
-                    .orElseThrow(() -> new RuntimeException("测验不存在"));
-
-            User presenter = userRepository.findByUsername(principal.getName())
-                    .orElseThrow(() -> new RuntimeException("用户不存在"));
-
-            // 检查权限
-            if (!quiz.getLecture().getPresenter().getId().equals(presenter.getId())) {
-                return ResponseEntity.status(403).body(Map.of("message", "无权激活此测验"));
-            }
-
-            // 激活测验
-            Quiz activatedQuiz = quizService.activateQuiz(quizId);
-            return ResponseEntity.ok(activatedQuiz);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        }
-    }
-
-    @GetMapping("/presenter/lectures/{lectureId}/quizzes")
-    public ResponseEntity<?> getLectureQuizzes(@PathVariable Long lectureId, Principal principal) {
-        Lecture lecture = lectureRepository.findById(lectureId)
-                .orElseThrow(() -> new RuntimeException("讲座不存在"));
-
-        User presenter = userRepository.findByUsername(principal.getName())
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
-
-        // 检查权限
-        if (!lecture.getPresenter().getId().equals(presenter.getId()) && 
-            !lecture.getOrganizer().getId().equals(presenter.getId())) {
-            return ResponseEntity.status(403).body(Map.of("message", "无权查看此讲座的测验"));
-        }
-
-        List<Quiz> quizzes = quizRepository.findByLectureOrderBySequenceNumberAsc(lecture);
-        return ResponseEntity.ok(quizzes);
-    }
-
-    @GetMapping("/presenter/quizzes/{quizId}/statistics")
-    public ResponseEntity<?> getQuizStatistics(@PathVariable Long quizId, Principal principal) {
-        Quiz quiz = quizRepository.findById(quizId)
-                .orElseThrow(() -> new RuntimeException("测验不存在"));
-
-        User user = userRepository.findByUsername(principal.getName())
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
-
-        // 检查权限
-        if (!quiz.getLecture().getPresenter().getId().equals(user.getId()) && 
-            !quiz.getLecture().getOrganizer().getId().equals(user.getId())) {
-            return ResponseEntity.status(403).body(Map.of("message", "无权查看此测验的统计信息"));
-        }
-
-        QuizService.QuizStatistics statistics = quizService.getQuizStatistics(quizId);
-        return ResponseEntity.ok(statistics);
-    }
-
-    // 听众相关API
-
-    @GetMapping("/audience/lectures/{lectureId}/quizzes")
-    public ResponseEntity<?> getAudienceQuizzes(@PathVariable Long lectureId, Principal principal) {
-        Lecture lecture = lectureRepository.findById(lectureId)
-                .orElseThrow(() -> new RuntimeException("讲座不存在"));
-
-        User audience = userRepository.findByUsername(principal.getName())
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
-
-        // 检查是否是此讲座的听众
-        if (!lecture.getAudience().contains(audience)) {
-            return ResponseEntity.status(403).body(Map.of("message", "您不是此讲座的听众"));
-        }
-
-        // 只返回已发布或活跃的测验
-        List<Quiz> quizzes = quizRepository.findByLectureOrderBySequenceNumberAsc(lecture).stream()
-                .filter(q -> q.getStatus() == Quiz.QuizStatus.PUBLISHED || q.getStatus() == Quiz.QuizStatus.ACTIVE)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(quizzes);
-    }
-
-    @GetMapping("/audience/quizzes/{quizId}")
-    public ResponseEntity<?> getQuizDetails(@PathVariable Long quizId, Principal principal) {
-        Quiz quiz = quizRepository.findById(quizId)
-                .orElseThrow(() -> new RuntimeException("测验不存在"));
-
-        User audience = userRepository.findByUsername(principal.getName())
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
-
-        // 检查是否是此讲座的听众
-        if (!quiz.getLecture().getAudience().contains(audience)) {
-            return ResponseEntity.status(403).body(Map.of("message", "您不是此讲座的听众"));
-        }
-
-        // 只返回活跃的测验的问题
-        if (quiz.getStatus() != Quiz.QuizStatus.ACTIVE) {
-            return ResponseEntity.badRequest().body(Map.of("message", "测验不在进行中"));
-        }
-
-        // 获取问题及选项，但不包含正确答案信息
-        List<Question> questions = questionRepository.findByQuizOrderBySequenceNumberAsc(quiz);
-        
-        // 构建没有正确答案信息的响应
-        QuizDetailsResponse response = new QuizDetailsResponse();
-        response.setQuizId(quiz.getId());
-        response.setTitle(quiz.getTitle());
-        response.setTimeLimit(quiz.getTimeLimit());
-        response.setExpiresAt(quiz.getExpiresAt());
-        
-        response.setQuestions(questions.stream().map(q -> {
-            QuestionDto questionDto = new QuestionDto();
-            questionDto.setId(q.getId());
-            questionDto.setContent(q.getContent());
-            questionDto.setType(q.getType().name());
-            questionDto.setSequenceNumber(q.getSequenceNumber());
-            
-            // 隐藏正确答案
-            questionDto.setOptions(q.getOptions().stream().map(o -> {
-                OptionDto optionDto = new OptionDto();
-                optionDto.setId(o.getId());
-                optionDto.setContent(o.getContent());
-                optionDto.setLabel(o.getOptionLabel());
-                // 不设置isCorrect字段
-                return optionDto;
-            }).collect(Collectors.toList()));
-            
-            return questionDto;
-        }).collect(Collectors.toList()));
-        
-        return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/audience/questions/{questionId}/answer")
-    public ResponseEntity<?> submitAnswer(
-            @PathVariable Long questionId,
-            @RequestBody AnswerRequest request,
-            Principal principal) {
-        try {
-            User audience = userRepository.findByUsername(principal.getName())
-                    .orElseThrow(() -> new RuntimeException("用户不存在"));
-
-            // 提交答案
-            UserResponse response = quizService.submitAnswer(
-                    audience.getId(),
-                    questionId,
-                    request.getOptionIds(),
-                    request.getTextResponse(),
-                    request.getResponseTimeMs());
-
-            return ResponseEntity.ok(Map.of("correct", response.getCorrect()));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        }
-    }
-
-    @GetMapping("/audience/quizzes/{quizId}/statistics")
-    public ResponseEntity<?> getUserQuizStatistics(@PathVariable Long quizId, Principal principal) {
-        User audience = userRepository.findByUsername(principal.getName())
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
-
-        Quiz quiz = quizRepository.findById(quizId)
-                .orElseThrow(() -> new RuntimeException("测验不存在"));
-
-        // 检查测验是否已结束
-        if (quiz.getStatus() != Quiz.QuizStatus.EXPIRED && quiz.getStatus() != Quiz.QuizStatus.CANCELLED) {
-            return ResponseEntity.badRequest().body(Map.of("message", "测验尚未结束"));
-        }
-
-        QuizService.UserQuizStatistics statistics = quizService.getUserQuizStatistics(audience.getId(), quizId);
-        return ResponseEntity.ok(statistics);
-    }
-
-    // 请求和响应DTO类
 
     public static class CreateQuizRequest {
         private String title;
         private Integer questionCount;
         private Integer difficultyLevel;
-        
-        // getter and setter
-        
+
         public String getTitle() {
             return title;
         }
-        
         public void setTitle(String title) {
             this.title = title;
         }
-        
         public Integer getQuestionCount() {
             return questionCount;
         }
-        
         public void setQuestionCount(Integer questionCount) {
             this.questionCount = questionCount;
         }
-        
         public Integer getDifficultyLevel() {
             return difficultyLevel;
         }
-        
         public void setDifficultyLevel(Integer difficultyLevel) {
             this.difficultyLevel = difficultyLevel;
         }
     }
-    
+
+    // ========== 3. 主讲人：发布测验 ==========
+    @PostMapping("/presenter/quizzes/{quizId}/publish")
+    public ResponseEntity<QuizDto> publishQuiz(
+            @PathVariable Long quizId,
+            @RequestBody PublishQuizRequest req,
+            Principal principal
+    ) {
+        Quiz quiz = quizService.publishQuiz(quizId, req.getTimeLimit());
+        return ResponseEntity.ok(QuizMapper.toDto(quiz));
+    }
+
     public static class PublishQuizRequest {
         private Integer timeLimit;
-        
-        // getter and setter
-        
+
         public Integer getTimeLimit() {
             return timeLimit;
         }
-        
         public void setTimeLimit(Integer timeLimit) {
             this.timeLimit = timeLimit;
         }
     }
-    
-    public static class AnswerRequest {
-        private List<Long> optionIds;
-        private String textResponse;
-        private Long responseTimeMs;
-        
-        // getter and setter
-        
-        public List<Long> getOptionIds() {
-            return optionIds;
-        }
-        
-        public void setOptionIds(List<Long> optionIds) {
-            this.optionIds = optionIds;
-        }
-        
-        public String getTextResponse() {
-            return textResponse;
-        }
-        
-        public void setTextResponse(String textResponse) {
-            this.textResponse = textResponse;
-        }
-        
-        public Long getResponseTimeMs() {
-            return responseTimeMs;
-        }
-        
-        public void setResponseTimeMs(Long responseTimeMs) {
-            this.responseTimeMs = responseTimeMs;
-        }
+
+    // ========== 4. 主讲人：激活测验 ==========
+    @PostMapping("/presenter/quizzes/{quizId}/activate")
+    public ResponseEntity<QuizDto> activateQuiz(
+            @PathVariable Long quizId,
+            Principal principal
+    ) {
+        Quiz quiz = quizService.activateQuiz(quizId);
+        return ResponseEntity.ok(QuizMapper.toDto(quiz));
     }
-    
+
+    // ========== 5. 主讲人：查看本讲座所有测验 ==========
+    @GetMapping("/presenter/lectures/{lectureId}/quizzes")
+    public ResponseEntity<List<QuizDto>> listPresenterQuizzes(
+            @PathVariable Long lectureId,
+            Principal principal
+    ) {
+        Lecture lecture = lectureRepository.findById(lectureId)
+                .orElseThrow(() -> new RuntimeException("讲座不存在"));
+        List<Quiz> quizzes = quizRepository.findByLectureOrderBySequenceNumberAsc(lecture);
+        return ResponseEntity.ok(QuizMapper.toDtoList(quizzes));
+    }
+
+    // ========== 6. 主讲人：查看测验统计 ==========
+    @GetMapping("/presenter/quizzes/{quizId}/statistics")
+    public ResponseEntity<QuizService.QuizStatistics> getQuizStatistics(
+            @PathVariable Long quizId,
+            Principal principal
+    ) {
+        QuizService.QuizStatistics stats = quizService.getQuizStatistics(quizId);
+        return ResponseEntity.ok(stats);
+    }
+
+    // ========== 7. 听众：查看可参加的测验列表 ==========
+    @GetMapping("/audience/lectures/{lectureId}/quizzes")
+    public ResponseEntity<List<QuizDto>> listAudienceQuizzes(
+            @PathVariable Long lectureId,
+            Principal principal
+    ) {
+        Lecture lecture = lectureRepository.findById(lectureId)
+                .orElseThrow(() -> new RuntimeException("讲座不存在"));
+        List<Quiz> quizzes = quizRepository.findByLectureOrderBySequenceNumberAsc(lecture).stream()
+                .filter(q -> q.getStatus() == Quiz.QuizStatus.PUBLISHED
+                        || q.getStatus() == Quiz.QuizStatus.ACTIVE)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(QuizMapper.toDtoList(quizzes));
+    }
+
+    // ========== 8. 听众：获取某个测验详细（带题目） ==========
+    @GetMapping("/audience/quizzes/{quizId}")
+    public ResponseEntity<QuizDetailsResponse> getQuizDetails(
+            @PathVariable Long quizId,
+            Principal principal
+    ) {
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new RuntimeException("测验不存在"));
+        if (quiz.getStatus() != Quiz.QuizStatus.ACTIVE) {
+            return ResponseEntity.badRequest().body(null);
+        }
+        List<Question> questions = questionRepository.findByQuizOrderBySequenceNumberAsc(quiz);
+
+        QuizDetailsResponse resp = new QuizDetailsResponse();
+        resp.setQuizId(quiz.getId());
+        resp.setTitle(quiz.getTitle());
+        resp.setTimeLimit(quiz.getTimeLimit());
+        resp.setExpiresAt(quiz.getExpiresAt());
+        resp.setQuestions(questions.stream().map(q -> {
+            QuestionDto d = new QuestionDto();
+            d.setId(q.getId());
+            d.setContent(q.getContent());
+            d.setType(q.getType().name());
+            d.setSequenceNumber(q.getSequenceNumber());
+            d.setOptions(q.getOptions().stream().map(o -> {
+                OptionDto od = new OptionDto();
+                od.setId(o.getId());
+                od.setContent(o.getContent());
+                od.setLabel(o.getOptionLabel());
+                return od;
+            }).collect(Collectors.toList()));
+            return d;
+        }).collect(Collectors.toList()));
+        return ResponseEntity.ok(resp);
+    }
+
     public static class QuizDetailsResponse {
         private Long quizId;
         private String title;
         private Integer timeLimit;
-        private java.time.LocalDateTime expiresAt;
+        private LocalDateTime expiresAt;
         private List<QuestionDto> questions;
-        
-        // getter and setter
-        
+
         public Long getQuizId() {
             return quizId;
         }
-        
         public void setQuizId(Long quizId) {
             this.quizId = quizId;
         }
-        
         public String getTitle() {
             return title;
         }
-        
         public void setTitle(String title) {
             this.title = title;
         }
-        
         public Integer getTimeLimit() {
             return timeLimit;
         }
-        
         public void setTimeLimit(Integer timeLimit) {
             this.timeLimit = timeLimit;
         }
-        
-        public java.time.LocalDateTime getExpiresAt() {
+        public LocalDateTime getExpiresAt() {
             return expiresAt;
         }
-        
-        public void setExpiresAt(java.time.LocalDateTime expiresAt) {
+        public void setExpiresAt(LocalDateTime expiresAt) {
             this.expiresAt = expiresAt;
         }
-        
         public List<QuestionDto> getQuestions() {
             return questions;
         }
-        
         public void setQuestions(List<QuestionDto> questions) {
             this.questions = questions;
         }
     }
-    
+
     public static class QuestionDto {
         private Long id;
         private String content;
         private String type;
         private Integer sequenceNumber;
         private List<OptionDto> options;
-        
-        // getter and setter
-        
+
         public Long getId() {
             return id;
         }
-        
         public void setId(Long id) {
             this.id = id;
         }
-        
         public String getContent() {
             return content;
         }
-        
         public void setContent(String content) {
             this.content = content;
         }
-        
         public String getType() {
             return type;
         }
-        
         public void setType(String type) {
             this.type = type;
         }
-        
         public Integer getSequenceNumber() {
             return sequenceNumber;
         }
-        
         public void setSequenceNumber(Integer sequenceNumber) {
             this.sequenceNumber = sequenceNumber;
         }
-        
         public List<OptionDto> getOptions() {
             return options;
         }
-        
         public void setOptions(List<OptionDto> options) {
             this.options = options;
         }
     }
-    
+
     public static class OptionDto {
         private Long id;
         private String content;
         private char label;
-        
-        // getter and setter
-        
+
         public Long getId() {
             return id;
         }
-        
         public void setId(Long id) {
             this.id = id;
         }
-        
         public String getContent() {
             return content;
         }
-        
         public void setContent(String content) {
             this.content = content;
         }
-        
         public char getLabel() {
             return label;
         }
-        
         public void setLabel(char label) {
             this.label = label;
         }
     }
-} 
+
+    // ========== 9. 听众：提交答案 ==========
+    @PostMapping("/audience/questions/{questionId}/answer")
+    public ResponseEntity<?> submitAnswer(
+            @PathVariable Long questionId,
+            @RequestBody AnswerRequest req,
+            Principal principal
+    ) {
+        User user = userRepository.findByUsername(principal.getName())
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        UserResponse r = quizService.submitAnswer(
+                user.getId(),
+                questionId,
+                req.getOptionIds(),
+                req.getTextResponse(),
+                req.getResponseTimeMs());
+        return ResponseEntity.ok(Map.of("correct", r.getCorrect()));
+    }
+
+    public static class AnswerRequest {
+        private List<Long> optionIds;
+        private String textResponse;
+        private Long responseTimeMs;
+
+        public List<Long> getOptionIds() {
+            return optionIds;
+        }
+        public void setOptionIds(List<Long> optionIds) {
+            this.optionIds = optionIds;
+        }
+        public String getTextResponse() {
+            return textResponse;
+        }
+        public void setTextResponse(String textResponse) {
+            this.textResponse = textResponse;
+        }
+        public Long getResponseTimeMs() {
+            return responseTimeMs;
+        }
+        public void setResponseTimeMs(Long responseTimeMs) {
+            this.responseTimeMs = responseTimeMs;
+        }
+    }
+
+    // ========== 10. 听众：获取个人测验统计 ==========
+    @GetMapping("/audience/quizzes/{quizId}/statistics")
+    public ResponseEntity<?> getUserStats(
+            @PathVariable Long quizId,
+            Principal principal
+    ) {
+        User user = userRepository.findByUsername(principal.getName())
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+        quizRepository.findById(quizId)
+                .orElseThrow(() -> new RuntimeException("测验不存在"));
+        QuizService.UserQuizStatistics stats = quizService.getUserQuizStatistics(user.getId(), quizId);
+        return ResponseEntity.ok(stats);
+    }
+}

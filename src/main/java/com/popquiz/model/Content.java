@@ -1,5 +1,6 @@
 package com.popquiz.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,11 +21,12 @@ public class Content {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lecture_id", nullable = false)
+    @JsonIgnore
     private Lecture lecture;
-    
+
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private ContentType type;

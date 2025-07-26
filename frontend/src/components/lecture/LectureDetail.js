@@ -1,24 +1,9 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import {
-  Box,
-  Button,
-  Chip,
-  Container,
-  Divider,
-  Grid,
-  IconButton,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Paper,
-  Tab,
-  Tabs,
-  Tooltip,
-  Typography,
-  Menu,
-  MenuItem
+  Box, Button, Chip, Container, Grid, IconButton, List,
+  ListItem, ListItemIcon, ListItemText, Paper, Tab, Tabs, Typography,
+  Menu, MenuItem
 } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CategoryIcon from '@mui/icons-material/Category';
@@ -39,7 +24,6 @@ import QuizList from '../quiz/QuizList';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
-
   return (
       <div
           role="tabpanel"
@@ -48,11 +32,7 @@ function TabPanel(props) {
           aria-labelledby={`lecture-tab-${index}`}
           {...other}
       >
-        {value === index && (
-            <Box sx={{ p: 3 }}>
-              {children}
-            </Box>
-        )}
+        {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
       </div>
   );
 }
@@ -70,21 +50,19 @@ const LectureDetail = () => {
   const [contents, setContents] = useState([]);
   const [quizzes, setQuizzes] = useState([]);
   const [anchorEl, setAnchorEl] = useState(null);
-  const menuOpen = Boolean(anchorEl);
 
   useEffect(() => {
     const fetchLectureData = async () => {
       setLoading(true);
-
       try {
-        const response = await axios.get(`/api/lectures/${lectureId}`);
-        setLecture(response.data);
-
-        const contentsResponse = await axios.get(`/api/lectures/${lectureId}/contents`);
-        setContents(contentsResponse.data);
-
-        const quizzesResponse = await axios.get(`/api/lectures/${lectureId}/quizzes`);
-        setQuizzes(quizzesResponse.data);
+        const [lectureRes, contentRes, quizRes] = await Promise.all([
+          axios.get(`/api/lectures/${lectureId}`),
+          axios.get(`/api/lectures/${lectureId}/contents`),
+          axios.get(`/api/lectures/${lectureId}/quizzes`)
+        ]);
+        setLecture(lectureRes.data);
+        setContents(contentRes.data);
+        setQuizzes(quizRes.data);
       } catch (error) {
         console.error('获取讲座数据失败:', error);
         setError('获取讲座数据失败，请稍后再试');
@@ -95,26 +73,23 @@ const LectureDetail = () => {
 
     fetchLectureData();
 
-    WebSocketService.subscribeLecture(lectureId, (msg) => {
-      console.log('收到讲座消息:', msg);
-    });
+    const trySubscribe = () => {
+      if (WebSocketService.isConnected()) {
+        WebSocketService.subscribeLecture(lectureId, (msg) => {
+          console.log('收到讲座消息:', msg);
+        });
+      } else {
+        setTimeout(trySubscribe, 500);
+      }
+    };
+    trySubscribe();
 
     return () => {
       WebSocketService.unsubscribeAll();
     };
   }, [lectureId]);
 
-  const handleTabChange = (event, newValue) => {
-    setCurrentTab(newValue);
-  };
-
-  const handleMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
+  const handleTabChange = (e, newVal) => setCurrentTab(newVal);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -134,17 +109,14 @@ const LectureDetail = () => {
     }
   };
 
-  const formatDateTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleString();
-  };
+  const formatDateTime = (str) => new Date(str).toLocaleString();
 
   const handleStartLecture = async () => {
     try {
       await axios.post(`/api/lectures/${lectureId}/start`);
       setLecture({ ...lecture, status: 'LIVE' });
-    } catch (error) {
-      console.error('开始讲座失败:', error);
+    } catch (err) {
+      console.error('开始讲座失败:', err);
     }
   };
 
@@ -152,14 +124,14 @@ const LectureDetail = () => {
     try {
       await axios.post(`/api/lectures/${lectureId}/end`);
       setLecture({ ...lecture, status: 'ENDED' });
-    } catch (error) {
-      console.error('结束讲座失败:', error);
+    } catch (err) {
+      console.error('结束讲座失败:', err);
     }
   };
 
   const handleEditLecture = () => {
     navigate(`/lectures/edit/${lectureId}`);
-    handleMenuClose();
+    setAnchorEl(null);
   };
 
   const handleDeleteLecture = async () => {
@@ -167,15 +139,16 @@ const LectureDetail = () => {
       try {
         await axios.delete(`/api/lectures/${lectureId}`);
         navigate('/lectures');
-      } catch (error) {
-        console.error('删除讲座失败:', error);
+      } catch (err) {
+        console.error('删除讲座失败:', err);
       }
     }
-    handleMenuClose();
+    setAnchorEl(null);
   };
 
-  const handleContentUploaded = (newContent) => {
-    setContents([...contents, newContent]);
+  const handleContentUploaded = async () => {
+    const res = await axios.get(`/api/lectures/${lectureId}/contents`);
+    setContents(res.data);
     setShowUploadForm(false);
   };
 
@@ -186,7 +159,6 @@ const LectureDetail = () => {
 
   const getPrimaryActionButton = () => {
     if (!lecture) return null;
-
     if (isOwnerOrSpeaker()) {
       if (lecture.status === 'UPCOMING') {
         return (
@@ -202,75 +174,56 @@ const LectureDetail = () => {
             </Button>
         );
       }
-      return null;
-    }
-
-    if (lecture.status === 'LIVE') {
+    } else if (lecture.status === 'LIVE') {
       return (
-          <Button variant="contained" color="primary" component={RouterLink} to={`/lectures/${lectureId}/join`} startIcon={<PlayArrowIcon />}>
+          <Button variant="contained" component={RouterLink} to={`/lectures/${lectureId}/join`} startIcon={<PlayArrowIcon />}>
             加入讲座
           </Button>
       );
     }
-
     return null;
   };
 
-  const canCreateQuiz = () => {
-    if (!lecture || !user) return false;
-    if (user.id !== lecture.organizerId && user.id !== lecture.speakerId) return false;
-    return contents.length > 0;
-  };
+  const canCreateQuiz = () =>
+      user && lecture && (user.id === lecture.organizerId || user.id === lecture.speakerId) && contents.length > 0;
 
   if (loading) {
     return (
         <Container maxWidth="lg" sx={{ mt: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
+          <Box sx={{ textAlign: 'center', py: 10 }}>
             <Typography>加载中...</Typography>
           </Box>
         </Container>
     );
   }
 
-  if (error) {
+  if (error || !lecture) {
     return (
         <Container maxWidth="lg" sx={{ mt: 4 }}>
           <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
-            <Typography color="error" paragraph>{error}</Typography>
+            <Typography color="error" paragraph>{error || '讲座不存在或已被删除'}</Typography>
             <Button variant="contained" onClick={() => navigate('/lectures')}>返回讲座列表</Button>
           </Paper>
         </Container>
     );
   }
 
-  if (!lecture) {
-    return (
-        <Container maxWidth="lg" sx={{ mt: 4 }}>
-          <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
-            <Typography paragraph>讲座不存在或已被删除</Typography>
-            <Button variant="contained" onClick={() => navigate('/lectures')}>返回讲座列表</Button>
-          </Paper>
-        </Container>
-    );
-  }
-
-  // 组件 UI 返回部分略
   return (
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         <Paper elevation={3} sx={{ p: 4 }}>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Box>
-              <Typography variant="h4" gutterBottom>{lecture.title}</Typography>
+              <Typography variant="h4">{lecture.title}</Typography>
               <Chip label={getStatusText(lecture.status)} color={getStatusColor(lecture.status)} />
             </Box>
             <Box>
               {getPrimaryActionButton()}
               {isOwnerOrSpeaker() && (
                   <>
-                    <IconButton onClick={handleMenuOpen}>
+                    <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}>
                       <MoreVertIcon />
                     </IconButton>
-                    <Menu anchorEl={anchorEl} open={menuOpen} onClose={handleMenuClose}>
+                    <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
                       <MenuItem onClick={handleEditLecture}>
                         <EditIcon fontSize="small" sx={{ mr: 1 }} /> 编辑讲座
                       </MenuItem>
@@ -284,6 +237,7 @@ const LectureDetail = () => {
           </Box>
 
           <Typography variant="body1" gutterBottom>{lecture.description}</Typography>
+
           <Grid container spacing={2} mt={2}>
             <Grid item xs={12} sm={6}>
               <List>
@@ -340,7 +294,7 @@ const LectureDetail = () => {
                     onClick={() => setShowUploadForm(true)}
                     sx={{ mb: 2 }}
                 >
-                  上传内容
+                  {contents.length > 0 ? '上传更多内容' : '上传内容'}
                 </Button>
                 {showUploadForm && (
                     <ContentUploadForm lectureId={lectureId} onUploaded={handleContentUploaded} />
@@ -356,7 +310,7 @@ const LectureDetail = () => {
                       <ListItemIcon><CategoryIcon /></ListItemIcon>
                       <ListItemText
                           primary={content.title || content.originalFilename}
-                          secondary={content.processStatus}
+                          secondary={String(content.processStatus)}
                       />
                     </ListItem>
                 ))}
@@ -380,7 +334,6 @@ const LectureDetail = () => {
         </TabPanel>
       </Container>
   );
-
 };
 
 export default LectureDetail;

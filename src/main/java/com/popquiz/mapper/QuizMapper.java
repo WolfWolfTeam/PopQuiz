@@ -21,10 +21,14 @@ public class QuizMapper {
         if (quiz.getLecture() != null) {
             dto.setLectureId(quiz.getLecture().getId());
         }
+
+        dto.setQuestionCount(quiz.getQuestions() == null ? 0 : quiz.getQuestions().size());
         return dto;
     }
 
     public static List<QuizDto> toDtoList(List<Quiz> quizzes) {
-        return quizzes.stream().map(QuizMapper::toDto).collect(Collectors.toList());
+        return quizzes.stream()
+                .map(QuizMapper::toDto)
+                .collect(Collectors.toList());
     }
 }
